@@ -301,8 +301,7 @@
             latestGazeData = getPrediction();
             // Count time
             var elapsedTime = performance.now() - clockStart;
-            // [20180611 James Tompkin]: What does this line do?
-            callback(latestGazeData, elapsedTime);
+
 
             // Draw face overlay
             if( webgazer.params.showFaceOverlay )
@@ -311,8 +310,11 @@
                 var tracker = webgazer.getTracker();
                 faceOverlay.getContext('2d').clearRect( 0, 0, videoElement.videoWidth, videoElement.videoHeight);
                 tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
-
-                window.readingEyeBox.setPositions(tracker.getPositions());
+                
+                // For reading eyetracking
+                if (window.readingEyeBox) {
+                    window.readingEyeBox.setPositions(tracker.getPositions());
+                }
             }
 
             // Feedback box
@@ -321,6 +323,9 @@
                 checkEyesInValidationBox();
 
             latestGazeData = await latestGazeData;
+
+            // [20200623 xk] callback to function passed into setGazeListener(fn)
+            callback(latestGazeData, elapsedTime);
             
             if( latestGazeData ) {
                 // [20200608 XK] Smoothing across the most recent 4 predictions, do we need this with Kalman filter?
@@ -561,7 +566,9 @@
         clockStart = performance.now();
 
         await loop();
-        await window.readingEyeBox.displayEyeBox();
+        if (window.readingEyeBox) {
+            await window.readingEyeBox.displayEyeBox();
+        }
     }
 
     /**

@@ -1,11 +1,44 @@
+
+var showGazeDot = true;
+
+$(document).keydown(function(e){
+    if (e.keyCode == 32) {
+        $("#spacebar").show();
+        var save_url = "http://localhost:8000/" + elapsedTime + "ms/SPACEBAR_PRESSED";
+        var temp_image = new Image();
+        temp_image.src = save_url;
+       return false;
+    }
+    if (e.keyCode == 191) {
+        showGazeDot ? $("#webgazerGazeDot").hide() : $("#webgazerGazeDot").show();
+        showGazeDot = !showGazeDot;
+    }
+});
+
+$(document).keyup(function(e){
+    if (e.keyCode == 32) {
+        $("#spacebar").hide();
+    }
+});
+
+var startTime = Date.now();
+var elapsedTime = 0;
+var interval = setInterval(function() {
+    elapsedTime = Date.now() - startTime;
+    document.getElementById("timer").innerHTML = (elapsedTime / 1000).toFixed(3);
+}, 100);
+
 window.onload = function() {
+
+    $("#spacebar").hide();
 
     //start the webgazer tracker
     webgazer.setRegression('ridge') /* currently must set regression and tracker */
         .setTracker('TFFacemesh')
-        .setGazeListener(function(data, clock) {
-          //   console.log(data); /* data is an object containing an x and y key which are the x and y prediction coordinates (no bounds limiting) */
-          //   console.log(clock); /* elapsed time in milliseconds since webgazer.begin() was called */
+        .setGazeListener((data, clock) => {
+          var save_url = "http://localhost:8000/" + elapsedTime + "ms/" + (data ? data.x : null) + "," + (data ? data.y : null);
+          var temp_image = new Image();
+          temp_image.src = save_url;
         })
         .begin()
         .showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
@@ -30,8 +63,75 @@ window.onload = function() {
         }
     }
     setTimeout(checkIfReady,100);
+    eyeboxLoop();
+    
 };
 
+window.readingEyeBox = {
+    'origin': null,
+    'width': null,
+    'height': null,
+    'canvas': null
+}
+
+window.readingEyeBox.setPositions = function (positions) {
+    if (positions) {
+        window.readingEyeBox.origin = [Math.round(positions[226][0]), Math.round(positions[8][1])];
+        window.readingEyeBox.width = Math.round(positions[446][0] - positions[226][0]);
+        window.readingEyeBox.height = Math.round(positions[195][1] - positions[8][1]);
+        // window.readingEyeBox.topRight = Math.round([positions[446][0],positions[8][1]]);
+        // window.readingEyeBox.bottomLeft = Math.round([positions[226][0],positions[195][1]]);
+        // window.readingEyeBox.bottomRight = Math.round([positions[446][0],positions[195][1]]);
+    }
+    // console.log(window.readingEyeBox);
+}
+
+var resizeWidth = 150;
+var resizeHeight = 50;
+var eyeboxCanvas = document.getElementById("eyebox_canvas");
+
+window.readingEyeBox.displayEyeBox = async function () {
+    if (!window.readingEyeBox.canvas) {
+        window.readingEyeBox.canvas = webgazer.getVideoElementCanvas();
+    }
+    if (window.readingEyeBox.canvas && readingEyeBox.origin) {
+        var eyeBoxImageData = window.readingEyeBox.canvas.getContext('2d').getImageData(window.readingEyeBox.origin[0],
+                                                                                        window.readingEyeBox.origin[1],
+                                                                                        window.readingEyeBox.width,
+                                                                                        window.readingEyeBox.height);
+        var gray = new Uint8ClampedArray(eyeBoxImageData.data.length);
+        for (var i = 0; i < gray.length; i += 4 ) {
+            var avg = Math.round((eyeBoxImageData.data[i] + eyeBoxImageData.data[i+1] + eyeBoxImageData.data[i+2]) / 3);
+            gray[i] = avg;
+            gray[i+1] = avg;
+            gray[i+2] = avg;
+            gray[i+3] = eyeBoxImageData.data[i+3];
+        }
+        var hist = new Uint8ClampedArray(gray.length);
+        webgazer.util.equalizeHistogram(gray, 5, hist);
+        eyeBoxImageData = new ImageData(hist, eyeBoxImageData.width, eyeBoxImageData.height);
+        // console.log(eyeBoxImageData);
+        var canvas = document.createElement('canvas');
+        canvas.width = window.readingEyeBox.width;
+        canvas.height = window.readingEyeBox.height;
+
+        canvas.getContext('2d').putImageData(eyeBoxImageData,0,0);
+
+        // save the canvas into eyebox canvas
+        eyeboxCanvas.getContext('2d').drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, resizeWidth, resizeHeight);
+    }
+}
+
+async function eyeboxLoop() {
+    await window.readingEyeBox.displayEyeBox();
+    requestAnimationFrame(eyeboxLoop);
+}
+
+var startTime = Date.now();
+
+var interval = setInterval(function() {
+    var elapsedTime = Date.now() - startTime;  document.getElementById("timer").innerHTML = elapsedTime;}, 100);
+    
 // Kalman Filter defaults to on. Can be toggled by user.
 window.applyKalmanFilter = true;
 
@@ -40,27 +140,6 @@ window.saveDataAcrossSessions = true;
 
 window.onbeforeunload = function() {
     webgazer.end();
-}
-
-window.readingEyeBox = {
-    'topLeft': null,
-    'topRight': null,
-    'bottomLeft': null,
-    'bottomRight': null
-}
-
-window.readingEyeBox.setPositions = function (positions) {
-    if (positions) {
-        window.readingEyeBox.topLeft = [positions[46][0],positions[46][1]];
-        window.readingEyeBox.topRight = [positions[276][0],positions[276][1]];
-        window.readingEyeBox.bottomLeft = [positions[117][0],positions[117][1]];
-        window.readingEyeBox.bottomRight = [positions[346][0],positions[346][1]];
-    }
-    // console.log(window.readingEyeBox);
-}
-
-window.readingEyeBox.displayEyeBox = async function () {
-
 }
 
 /**
@@ -72,10 +151,4 @@ function Restart(){
     PopUpInstruction();
 }
 
-$(document).keydown(function(e){
-    if (e.keyCode == 32) { 
-       console.log( "next line" );
-       return false;
-    }
-});
 

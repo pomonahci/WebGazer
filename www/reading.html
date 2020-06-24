@@ -12,7 +12,7 @@ Instructions on use can be found in the README repository.
 <html>
     <head>
         <META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
-        <TITLE>WebGazer Demo</TITLE>
+        <TITLE>Eyetracking for Readability</TITLE>
         <link rel="stylesheet" type="text/css" href="./css/style.css">
         <link rel="stylesheet"
         href="https://fonts.googleapis.com/css?family=Comic+Neue">
@@ -28,15 +28,35 @@ Instructions on use can be found in the README repository.
           #wrapper {
             padding: 1%;
             box-sizing: border-box;
+            width: 100%;
           }
           #text-col {
-            margin: 250px auto;
+            margin: 250px auto 0;
             width: 250px;
             font-size: 16px;
             float: left;
           }
           #toggle-button {
             float: right;
+          }
+          #eyebox_canvas {
+            position: absolute;
+            top:0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: 1% auto;
+            text-align: center;
+          }
+          #timer {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+          }
+          #spacebar {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
           }
         </style>
     </head>
@@ -68,6 +88,9 @@ Instructions on use can be found in the README repository.
         }
       </script>
 
+      <div id="eyebox">
+        <canvas id="eyebox_canvas" width="150" height="50" style="border:1px solid #000000;"></canvas>
+      </div>
       <div id="wrapper">
         <div id="text-col">
           <p>
@@ -89,23 +112,18 @@ Instructions on use can be found in the README repository.
           </p>
         </div>
       </div>
+      <div id="timer"></div>
+      <b id="spacebar">SPACE</b>
+
       <canvas id="plotting_canvas" width="500" height="500" style="cursor:crosshair;"></canvas>
-
-        <script src="./node_modules/jquery/dist/jquery.min.js"></script>
-        <script src="./node_modules/sweetalert/dist/sweetalert.min.js"></script>
-
-        <script src="./js/reading.js"></script>
-        <script src="./js/precision_calculation.js"></script>
-        <script src="./js/precision_store_points.js"></script>
-        <script >
-          var videoCanvas = document.getElementById("webgazerVideoCanvas");
-        </script>
-
-        </nav>
-        
-        <!-- Latest compiled JavaScript -->
-        <script src="./js/resize_canvas.js"></script>
-        <script src="./node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
-
+      <script src="./node_modules/jquery/dist/jquery.min.js"></script>
+      <script src="./node_modules/sweetalert/dist/sweetalert.min.js"></script>
+      <script src="./js/reading.js"></script>
+      <script src="./js/precision_calculation.js"></script>
+      <script src="./js/precision_store_points.js"></script>
+      </nav>
+      <!-- Latest compiled JavaScript -->
+      <script src="./js/resize_canvas.js"></script>
+      <script src="./node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
     </body>
 </html>
