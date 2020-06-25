@@ -502,7 +502,7 @@
         // We set these to stop the video appearing too large when it is added for the very first time
         videoElement.style.width = webgazer.params.videoViewerWidth + 'px';
         videoElement.style.height = webgazer.params.videoViewerHeight + 'px';
-        //videoElement.style.zIndex="-1";
+        // videoElement.style.zIndex="-1";
         
         // Canvas for drawing video to pass to clm tracker
         videoElementCanvas = document.createElement('canvas');
@@ -517,6 +517,18 @@
         faceOverlay.style.position = 'fixed';
         faceOverlay.style.top = topDist;
         faceOverlay.style.left = leftDist;
+
+        // Mirror video feed
+        videoElement.style.setProperty("-moz-transform", "scale(-1, 1)");
+        videoElement.style.setProperty("-webkit-transform", "scale(-1, 1)");
+        videoElement.style.setProperty("-o-transform", "scale(-1, 1)");
+        videoElement.style.setProperty("transform", "scale(-1, 1)");
+        videoElement.style.setProperty("filter", "FlipH");
+        faceOverlay.style.setProperty("-moz-transform", "scale(-1, 1)");
+        faceOverlay.style.setProperty("-webkit-transform", "scale(-1, 1)");
+        faceOverlay.style.setProperty("-o-transform", "scale(-1, 1)");
+        faceOverlay.style.setProperty("transform", "scale(-1, 1)");
+        faceOverlay.style.setProperty("filter", "FlipH");
 
         // Feedback box
         // Lets the user know when their face is in the middle
