@@ -1,4 +1,6 @@
 
+var elapsedTime = 0;
+
 var showGazeDot = true;
 
 $(document).keydown(function(e){
@@ -13,6 +15,9 @@ $(document).keydown(function(e){
         showGazeDot ? $("#webgazerGazeDot").hide() : $("#webgazerGazeDot").show();
         showGazeDot = !showGazeDot;
     }
+    if (e.keyCode == 82) {
+        elapsedTime = 0;
+    }
 });
 
 $(document).keyup(function(e){
@@ -20,13 +25,6 @@ $(document).keyup(function(e){
         $("#spacebar").hide();
     }
 });
-
-var startTime = Date.now();
-var elapsedTime = 0;
-var interval = setInterval(function() {
-    elapsedTime = Date.now() - startTime;
-    document.getElementById("timer").innerHTML = (elapsedTime / 1000).toFixed(3);
-}, 100);
 
 window.onload = function() {
 
@@ -39,6 +37,7 @@ window.onload = function() {
           var save_url = "http://localhost:8000/" + elapsedTime + "ms/" + (data ? data.x : null) + "," + (data ? data.y : null);
           var temp_image = new Image();
           temp_image.src = save_url;
+          document.getElementById("prediction").innerHTML = (data ? data.x : null) + "," + (data ? data.y : null);
         })
         .begin()
         .showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
@@ -130,7 +129,9 @@ async function eyeboxLoop() {
 var startTime = Date.now();
 
 var interval = setInterval(function() {
-    var elapsedTime = Date.now() - startTime;  document.getElementById("timer").innerHTML = elapsedTime;}, 100);
+    elapsedTime = Date.now() - startTime;
+    document.getElementById("timer").innerHTML = elapsedTime;
+}, 1);
     
 // Kalman Filter defaults to on. Can be toggled by user.
 window.applyKalmanFilter = true;
