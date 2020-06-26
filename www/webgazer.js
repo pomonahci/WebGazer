@@ -42832,14 +42832,23 @@ function supports_ogg_theora_video() {
 
         // Fit the detected eye in a rectangle
         // https://raw.githubusercontent.com/tensorflow/tfjs-models/master/facemesh/mesh_map.jpg
-        var leftOriginX = Math.round(positions[35][0]);
-        var leftOriginY = Math.round(positions[159][1]);
-        var leftWidth = Math.round(positions[133][0] - leftOriginX);
-        var leftHeight = Math.round(positions[145][1] - leftOriginY);
-        var rightOriginX = Math.round(positions[362][0]);
-        var rightOriginY = Math.round(positions[386][1]);
-        var rightWidth = Math.round(positions[263][0] - rightOriginX);
-        var rightHeight = Math.round(positions[274][1] - rightOriginY);
+        var leftOriginX = Math.round(positions[130][0]);
+        var leftOriginY = Math.round(positions[27][1]);
+        var leftWidth = Math.round(positions[244][0] - leftOriginX);
+        var leftHeight = Math.round(positions[23][1] - leftOriginY);
+        var rightOriginX = Math.round(positions[464][0]);
+        var rightOriginY = Math.round(positions[257][1]);
+        var rightWidth = Math.round(positions[359][0] - rightOriginX);
+        var rightHeight = Math.round(positions[253][1] - rightOriginY);
+
+        // var leftOriginX = Math.round(Math.min(positions[247][0], positions[130][0], positions[25][0]));
+        // var leftOriginY = Math.round(Math.min(positions[247][1], positions[27][1], positions[190][1]));
+        // var leftWidth = Math.round(Math.max(positions[190][0], positions[243][0], positions[233][0]) - leftOriginX);
+        // var leftHeight = Math.round(Math.max(positions[25][1], positions[23][1], positions[112][1]) - leftOriginY);
+        // var rightOriginX = Math.round(Math.min(positions[414][0], positions[463][0], positions[453][0]));
+        // var rightOriginY = Math.round(Math.min(positions[414][1], positions[257][1], positions[467][1]));
+        // var rightWidth = Math.round(Math.max(positions[467][0], positions[359][0], positions[255][0]) - rightOriginX);
+        // var rightHeight = Math.round(Math.max(positions[341][1], positions[253][1], positions[255][1]) - rightOriginY);
 
         if (leftWidth === 0 || rightWidth === 0){
           console.log('an eye patch had zero width');
@@ -43701,6 +43710,13 @@ function supports_ogg_theora_video() {
      * @constructor
      */
     webgazer.reg.RidgeReg = function() {
+        this.init();
+    };
+
+    /**
+     * Initialize new arrays and initialize Kalman filter.
+     */
+    webgazer.reg.RidgeReg.prototype.init = function() {
         this.screenXClicksArray = new webgazer.util.DataWindow(dataWindow);
         this.screenYClicksArray = new webgazer.util.DataWindow(dataWindow);
         this.eyeFeaturesClicks = new webgazer.util.DataWindow(dataWindow);
@@ -43719,24 +43735,12 @@ function supports_ogg_theora_video() {
         // Initialize Kalman filter [20200608 xk] what do we do about parameters?
         // [20200611 xk] unsure what to do w.r.t. dimensionality of these matrices. So far at least 
         //               by my own anecdotal observation a 4x1 x vector seems to work alright
-        // var F = [ [1, 0, 1, 0, 0, 0],
-        //           [0, 1, 0, 1, 0, 0],
-        //           [0, 0, 1, 0, 1, 0],
-        //           [0, 0, 0, 1, 0, 1],
-        //           [0, 0, 0, 0, 1, 0],
-        //           [0, 0, 0, 0, 0, 1]];
         var F = [ [1, 0, 1, 0],
                   [0, 1, 0, 1],
                   [0, 0, 1, 0],
                   [0, 0, 0, 1]];
         
         //Parameters Q and R may require some fine tuning
-        // var Q = [ [1/4, 0,   1/2, 0,    0,   0],
-        //           [0,   1/4, 0,   1/2,  0,   0],
-        //           [0,   0,   1/4, 0,    1/2, 0],
-        //           [0,   0,   0,   1/4,  0,   1/2],
-        //           [1/2, 0,   1/2, 0,    1,   0],
-        //           [0,   1/2,  0,  1/2,  0,   1]];// * delta_t
         var Q = [ [1/4, 0,    1/2, 0],
                   [0,   1/4,  0,   1/2],
                   [1/2, 0,    1,   0],
@@ -43863,8 +43867,6 @@ function supports_ogg_theora_video() {
      */
     webgazer.reg.RidgeReg.prototype.setData = function(data) {
         for (var i = 0; i < data.length; i++) {
-            // [20200611 xk] Previous comment said this was a kludge, but it seems like this is the best solution 
-            
             // Clone data array
             var leftData = new Uint8ClampedArray(data[i].eyes.left.patch.data);
             var rightData = new Uint8ClampedArray(data[i].eyes.right.patch.data);
@@ -44002,10 +44004,16 @@ function supports_ogg_theora_video() {
      * @constructor
      */
     webgazer.reg.RidgeWeightedReg = function() {
+        this.init();
+    };
+    
+    /**
+     * Initialize new arrays and initialize Kalman filter.
+     */
+    webgazer.reg.RidgeReg.prototype.init = function() {
         this.screenXClicksArray = new webgazer.util.DataWindow(dataWindow);
         this.screenYClicksArray = new webgazer.util.DataWindow(dataWindow);
         this.eyeFeaturesClicks = new webgazer.util.DataWindow(dataWindow);
-        this.dataClicks = new webgazer.util.DataWindow(dataWindow);
 
         //sets to one second worth of cursor trail
         this.trailTime = 1000;
@@ -44014,6 +44022,8 @@ function supports_ogg_theora_video() {
         this.screenYTrailArray = new webgazer.util.DataWindow(trailDataWindow);
         this.eyeFeaturesTrail = new webgazer.util.DataWindow(trailDataWindow);
         this.trailTimes = new webgazer.util.DataWindow(trailDataWindow);
+
+        this.dataClicks = new webgazer.util.DataWindow(dataWindow);
         this.dataTrail = new webgazer.util.DataWindow(trailDataWindow);
 
         // Initialize Kalman filter [20200608 xk] what do we do about parameters?
@@ -44247,6 +44257,13 @@ function supports_ogg_theora_video() {
      * @constructor
      */
     webgazer.reg.RidgeRegThreaded = function() {
+        this.init();
+    };
+
+    /**
+     * Initialize new arrays and initialize Kalman filter.
+     */
+    webgazer.reg.RidgeRegThreaded.prototype.init = function() {
         this.screenXClicksArray = new webgazer.util.DataWindow(dataWindow);
         this.screenYClicksArray = new webgazer.util.DataWindow(dataWindow);
         this.eyeFeaturesClicks = new webgazer.util.DataWindow(dataWindow);
@@ -44296,7 +44313,7 @@ function supports_ogg_theora_video() {
         var x_initial = [[500], [500], [0], [0]]; // Initial measurement matrix
 
         this.kalman = new self.webgazer.util.KalmanFilter(F, H, Q, R, P_initial, x_initial);
-    };
+    }
 
     /**
      * Add given data from eyes
@@ -45164,7 +45181,14 @@ function store_points(x, y, k) {
                     }
                 }
                 // GazeDot
+                if (!webgazer.params.showGazeDot) {
+                    webgazer.params.showGazeDot = true;
+                    gazeDot.style.display = 'block';
+                }
                 gazeDot.style.transform = 'translate3d(' + pred.x + 'px,' + pred.y + 'px,0)';
+            } else {
+                webgazer.params.showGazeDot = false;
+                gazeDot.style.display = 'none';
             }
 
             requestAnimationFrame(loop);
@@ -45284,13 +45308,13 @@ function store_points(x, y, k) {
     }
 
     /**
-     * Clears data from model and global storage [20200611 xk] is this unused?
+     * Clears data from model and global storage
      */
     function clearData() {
         // Removes data from localforage
         localforage.clear();
         for (var reg in regs) {
-            regs[reg].setData([]);
+            regs[reg].init();
         }
     }
 
@@ -45850,6 +45874,13 @@ function store_points(x, y, k) {
      */
     webgazer.setVideoElementCanvas = function(canvas) {
         videoElementCanvas = canvas;
+    }
+
+    /**
+     * Clear data from localforage and from regs
+     */
+    webgazer.clearData = async function() {
+        clearData();
     }
 
 

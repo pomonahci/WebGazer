@@ -350,7 +350,14 @@
                     }
                 }
                 // GazeDot
+                if (!webgazer.params.showGazeDot) {
+                    webgazer.params.showGazeDot = true;
+                    gazeDot.style.display = 'block';
+                }
                 gazeDot.style.transform = 'translate3d(' + pred.x + 'px,' + pred.y + 'px,0)';
+            } else {
+                webgazer.params.showGazeDot = false;
+                gazeDot.style.display = 'none';
             }
 
             requestAnimationFrame(loop);
@@ -470,13 +477,13 @@
     }
 
     /**
-     * Clears data from model and global storage [20200611 xk] is this unused?
+     * Clears data from model and global storage
      */
     function clearData() {
         // Removes data from localforage
         localforage.clear();
         for (var reg in regs) {
-            regs[reg].setData([]);
+            regs[reg].init();
         }
     }
 
@@ -1036,6 +1043,13 @@
      */
     webgazer.setVideoElementCanvas = function(canvas) {
         videoElementCanvas = canvas;
+    }
+
+    /**
+     * Clear data from localforage and from regs
+     */
+    webgazer.clearData = async function() {
+        clearData();
     }
 
 
