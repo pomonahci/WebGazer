@@ -44873,6 +44873,7 @@ function store_points(x, y, k) {
 
     // View options
     webgazer.params.showVideo = true;
+    webgazer.params.mirrorVideo = true;
     webgazer.params.showFaceOverlay = true;
     webgazer.params.showFaceFeedbackBox = true;
     webgazer.params.showGazeDot = false;
@@ -45299,7 +45300,7 @@ function store_points(x, y, k) {
     }
 
    /**
-    * Constructs the global storage object and adds it to local storage
+    * Adds data to localforage
     */
     async function setGlobalData() {
         // Grab data from regression model
@@ -45318,6 +45319,8 @@ function store_points(x, y, k) {
     function clearData() {
         // Removes data from localforage
         localforage.clear();
+
+        // Removes data from regression model
         for (var reg in regs) {
             regs[reg].init();
         }
@@ -45362,16 +45365,18 @@ function store_points(x, y, k) {
         faceOverlay.style.left = leftDist;
 
         // Mirror video feed
-        videoElement.style.setProperty("-moz-transform", "scale(-1, 1)");
-        videoElement.style.setProperty("-webkit-transform", "scale(-1, 1)");
-        videoElement.style.setProperty("-o-transform", "scale(-1, 1)");
-        videoElement.style.setProperty("transform", "scale(-1, 1)");
-        videoElement.style.setProperty("filter", "FlipH");
-        faceOverlay.style.setProperty("-moz-transform", "scale(-1, 1)");
-        faceOverlay.style.setProperty("-webkit-transform", "scale(-1, 1)");
-        faceOverlay.style.setProperty("-o-transform", "scale(-1, 1)");
-        faceOverlay.style.setProperty("transform", "scale(-1, 1)");
-        faceOverlay.style.setProperty("filter", "FlipH");
+        if (webgazer.params.mirrorVideo) {
+            videoElement.style.setProperty("-moz-transform", "scale(-1, 1)");
+            videoElement.style.setProperty("-webkit-transform", "scale(-1, 1)");
+            videoElement.style.setProperty("-o-transform", "scale(-1, 1)");
+            videoElement.style.setProperty("transform", "scale(-1, 1)");
+            videoElement.style.setProperty("filter", "FlipH");
+            faceOverlay.style.setProperty("-moz-transform", "scale(-1, 1)");
+            faceOverlay.style.setProperty("-webkit-transform", "scale(-1, 1)");
+            faceOverlay.style.setProperty("-o-transform", "scale(-1, 1)");
+            faceOverlay.style.setProperty("transform", "scale(-1, 1)");
+            faceOverlay.style.setProperty("filter", "FlipH");
+        }
 
         // Feedback box
         // Lets the user know when their face is in the middle
