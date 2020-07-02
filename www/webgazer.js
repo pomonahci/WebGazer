@@ -45147,6 +45147,11 @@ function store_points(x, y, k) {
                 var tracker = webgazer.getTracker();
                 faceOverlay.getContext('2d').clearRect( 0, 0, videoElement.videoWidth, videoElement.videoHeight);
                 tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
+                
+                // For reading eyetracking
+                if (window.readingEyeBox) {
+                    window.readingEyeBox.setPositions(tracker.getPositions());
+                }
             }
 
             // Feedback box
@@ -45421,6 +45426,9 @@ function store_points(x, y, k) {
         clockStart = performance.now();
 
         await loop();
+        if (window.readingEyeBox) {
+            await window.readingEyeBox.displayEyeBox();
+        }
     }
 
     /**
