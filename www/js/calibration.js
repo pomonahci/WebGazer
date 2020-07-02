@@ -93,10 +93,10 @@ $(document).ready(function(){
                       stop_storing_points_variable(); // stop storing the prediction points
                       var past50 = get_points() // retrieve the stored points
                       var precision_measurement = calculatePrecision(past50);
-                      var accuracyLabel = "<a>Accuracy | "+precision_measurement+"%</a>";
+                      var accuracyLabel = "<a>Average Error | "+precision_measurement+"px</a>";
                       document.getElementById("Accuracy").innerHTML = accuracyLabel; // Show the accuracy in the nav bar.
                       swal({
-                        title: "Your accuracy measure is " + precision_measurement + "%",
+                        title: "Average error is " + precision_measurement + "px",
                         allowOutsideClick: false,
                         buttons: {
                           cancel: "Recalibrate",

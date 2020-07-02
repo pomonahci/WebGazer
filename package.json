@@ -7,7 +7,7 @@
   },
   "devDependencies": {
     "git": "^0.1.5",
-    "grunt": "*",
+    "grunt": "^1.1.0",
     "grunt-contrib-concat": "*",
     "grunt-contrib-copy": "^1.0.0",
     "grunt-contrib-uglify-es": "*",
