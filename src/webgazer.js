@@ -262,10 +262,8 @@
             return null;
         }
         for (var reg in regs) {
-            let t0 = performance.now();
             predictions.push(regs[reg].predict(latestEyeFeatures));
-            let t1 = performance.now();
-            console.log("Overall prediction took " + (t1 - t0) + " time")
+
         }
         if (regModelIndex !== undefined) {
             return predictions[regModelIndex] === null ? null : {
@@ -291,7 +289,6 @@
 
     async function loop() {
         if (!paused) {
-            console.log("loop");
             // [20200617 XK] TODO: there is currently lag between the camera input and the face overlay. This behavior
             // is not seen in the facemesh demo. probably need to optimize async implementation. I think the issue lies
             // in the implementation of getPrediction().

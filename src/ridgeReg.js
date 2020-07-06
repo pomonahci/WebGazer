@@ -8,8 +8,8 @@
     webgazer.params = webgazer.params || {};
 
     var ridgeParameter = Math.pow(10,-5);
-    var resizeWidth = 50;
-    var resizeHeight = 30;
+    var resizeWidth = 12;
+    var resizeHeight = 6;
     var dataWindow = 700;
     var trailDataWindow = 10;
 
@@ -167,7 +167,6 @@
 
         this.kalman = new self.webgazer.util.KalmanFilter(F, H, Q, R, P_initial, x_initial);
 
-        this.regress();
     };
 
     // TODO: Document this
@@ -182,6 +181,7 @@
         this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
         let ridge2 = performance.now();
         console.log("Regression took " + (ridge2 - ridge1) + " time");
+        console.log("Resolution: " + resizeWidth + " " + resizeHeight)
     } 
 
     /**
