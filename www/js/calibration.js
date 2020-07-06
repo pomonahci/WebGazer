@@ -92,11 +92,13 @@ $(document).ready(function(){
                   sleep(5000).then(() => {
                       stop_storing_points_variable(); // stop storing the prediction points
                       var past50 = get_points() // retrieve the stored points
-                      var precision_measurement = calculatePrecision(past50);
-                      var accuracyLabel = "<a>Average Error | "+precision_measurement+"px</a>";
+                      var error_measurements = calculatePrecision(past50);
+                      var accuracyLabel = "<a>Average Error: " + error_measurements.avg +
+                                          "px | St. deviation: " + error_measurements.stdev +
+                                          "px | Accuracy: " + error_measurements.precision + "px</a>";
                       document.getElementById("Accuracy").innerHTML = accuracyLabel; // Show the accuracy in the nav bar.
                       swal({
-                        title: "Average error is " + precision_measurement + "px",
+                        title: "Average Error: " + error_measurements.avg + "px | St. deviation: " + error_measurements.stdev + "px | Accuracy: " + error_measurements.precision + "px",
                         allowOutsideClick: false,
                         buttons: {
                           cancel: "Recalibrate",

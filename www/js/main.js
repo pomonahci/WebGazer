@@ -1,4 +1,4 @@
-var videoLoc = "../test.webm"
+var videoLoc = "../test.webm" // [20200702 xk] TODO: Source needs to be 4:3 resolution. Unsure how to make this adaptive
 
 window.onload = function() {
 
@@ -9,9 +9,9 @@ window.onload = function() {
           //   console.log(data); /* data is an object containing an x and y key which are the x and y prediction coordinates (no bounds limiting) */
           //   console.log(clock); /* elapsed time in milliseconds since webgazer.begin() was called */
         })
-        .setStaticVideo(videoLoc)
-        .begin()
-        .showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
+        // .setStaticVideo(videoLoc)
+        .begin().then(value => value.showPredictionPoints(true));
+        // .showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
 
 
     //Set up the webgazer video feedback.
