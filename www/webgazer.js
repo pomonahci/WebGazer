@@ -44895,6 +44895,8 @@ function store_points(x, y, k) {
     webgazer.params.faceOverlayId = 'webgazerFaceOverlay';
     webgazer.params.faceFeedbackBoxId = 'webgazerFaceFeedbackBox';
     webgazer.params.gazeDotId = 'webgazerGazeDot'
+
+    
     
     webgazer.params.videoViewerWidth = 320;
     webgazer.params.videoViewerHeight = 240;
@@ -44902,6 +44904,7 @@ function store_points(x, y, k) {
     webgazer.params.faceFeedbackBoxRatio = 0.66;
 
     // View options
+    webgazer.params.useVideoFile = false;
     webgazer.params.showVideo = true;
     webgazer.params.mirrorVideo = true;
     webgazer.params.showFaceOverlay = true;
@@ -45128,10 +45131,8 @@ function store_points(x, y, k) {
             return null;
         }
         for (var reg in regs) {
-            let t0 = performance.now();
             predictions.push(regs[reg].predict(latestEyeFeatures));
-            let t1 = performance.now();
-            console.log("Overall prediction took " + (t1 - t0) + " time")
+
         }
         if (regModelIndex !== undefined) {
             return predictions[regModelIndex] === null ? null : {
@@ -45157,7 +45158,6 @@ function store_points(x, y, k) {
 
     async function loop() {
         if (!paused) {
-            console.log("loop");
             // [20200617 XK] TODO: there is currently lag between the camera input and the face overlay. This behavior
             // is not seen in the facemesh demo. probably need to optimize async implementation. I think the issue lies
             // in the implementation of getPrediction().
@@ -45367,7 +45367,11 @@ function store_points(x, y, k) {
 
         videoElement = document.createElement('video');
         videoElement.id = webgazer.params.videoElementId;
-        videoElement.srcObject = videoStream; 
+        if (webgazer.params.useVideoFile) {
+            videoElement.src = videoStream;
+        } else {
+            videoElement.srcObject = videoStream;
+        }
         videoElement.autoplay = true;
         videoElement.style.display = webgazer.params.showVideo ? 'block' : 'none';
         videoElement.style.position = 'fixed';
@@ -45739,8 +45743,9 @@ function store_points(x, y, k) {
      *  @return {webgazer} this
      */
     webgazer.setStaticVideo = function(videoLoc) {
-       debugVideoLoc = videoLoc;
-       return webgazer;
+        debugVideoLoc = videoLoc;
+        webgazer.params.useVideoFile = true;
+        return webgazer;
     };
 
     /**

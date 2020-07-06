@@ -29,6 +29,8 @@
     webgazer.params.faceOverlayId = 'webgazerFaceOverlay';
     webgazer.params.faceFeedbackBoxId = 'webgazerFaceFeedbackBox';
     webgazer.params.gazeDotId = 'webgazerGazeDot'
+
+    
     
     webgazer.params.videoViewerWidth = 320;
     webgazer.params.videoViewerHeight = 240;
@@ -36,6 +38,7 @@
     webgazer.params.faceFeedbackBoxRatio = 0.66;
 
     // View options
+    webgazer.params.useVideoFile = false;
     webgazer.params.showVideo = true;
     webgazer.params.mirrorVideo = true;
     webgazer.params.showFaceOverlay = true;
@@ -498,7 +501,11 @@
 
         videoElement = document.createElement('video');
         videoElement.id = webgazer.params.videoElementId;
-        videoElement.srcObject = videoStream; 
+        if (webgazer.params.useVideoFile) {
+            videoElement.src = videoStream;
+        } else {
+            videoElement.srcObject = videoStream;
+        }
         videoElement.autoplay = true;
         videoElement.style.display = webgazer.params.showVideo ? 'block' : 'none';
         videoElement.style.position = 'fixed';
@@ -870,8 +877,9 @@
      *  @return {webgazer} this
      */
     webgazer.setStaticVideo = function(videoLoc) {
-       debugVideoLoc = videoLoc;
-       return webgazer;
+        debugVideoLoc = videoLoc;
+        webgazer.params.useVideoFile = true;
+        return webgazer;
     };
 
     /**
