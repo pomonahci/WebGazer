@@ -43615,8 +43615,8 @@ function supports_ogg_theora_video() {
     webgazer.params = webgazer.params || {};
 
     var ridgeParameter = Math.pow(10,-5);
-    var resizeWidth = 50;
-    var resizeHeight = 30;
+    var resizeWidth = 40;
+    var resizeHeight = 20;
     var dataWindow = 700;
     var trailDataWindow = 10;
 
