@@ -503,6 +503,7 @@
         videoElement.id = webgazer.params.videoElementId;
         if (webgazer.params.useVideoFile) {
             videoElement.src = videoStream;
+            videoElement.loop = true;
         } else {
             videoElement.srcObject = videoStream;
         }
@@ -551,7 +552,7 @@
         faceFeedbackBox.style.display = webgazer.params.showFaceFeedbackBox ? 'block' : 'none';
         faceFeedbackBox.style.position = 'fixed';
         faceFeedbackBox.style.border = 'solid';
-               
+
         // Gaze dot 
         // Starts offscreen
         gazeDot = document.createElement('div');
@@ -631,22 +632,27 @@
      * @param {Function} onFail - Callback to call in case it is impossible to find user camera
      * @returns {*}
      */
-    webgazer.begin = function(onFail) {
+    webgazer.begin = async function(onFail) {
         if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.chrome){
             alert("WebGazer works only over https. If you are doing local development you need to run a local server.");
         }
 
         // Load model data stored in localforage.
         if (window.saveDataAcrossSessions) {
-            loadGlobalData();
+            console.log('loading stored calibration data');
+            await loadGlobalData();
+        }
+
+        if (debugVideoLoc) {
+            console.log('initializing video stream from file');
+            init(debugVideoLoc);
+            console.log('done');
+            return webgazer;
         }
 
         onFail = onFail || function() {console.log('No stream')};
 
-        if (debugVideoLoc) {
-            init(debugVideoLoc);
-            return webgazer;
-        }
+
 
         ///////////////////////
         // SETUP VIDEO ELEMENTS
