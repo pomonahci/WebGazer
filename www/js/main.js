@@ -10,7 +10,7 @@ window.onload = function() {
           //   console.log(clock); /* elapsed time in milliseconds since webgazer.begin() was called */
         })
         // .setStaticVideo(videoLoc)
-        .begin().then(value => value.showPredictionPoints(true));
+        .begin()  // .then(value => value.showPredictionPoints(true));
         // .showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
 
 

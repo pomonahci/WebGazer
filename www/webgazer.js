@@ -43615,8 +43615,8 @@ function supports_ogg_theora_video() {
     webgazer.params = webgazer.params || {};
 
     var ridgeParameter = Math.pow(10,-5);
-    var resizeWidth = 12;
-    var resizeHeight = 6;
+    var resizeWidth = 20;
+    var resizeHeight = 10;
     var dataWindow = 700;
     var trailDataWindow = 10;
 
@@ -43737,9 +43737,10 @@ function supports_ogg_theora_video() {
         this.dataClicks = new webgazer.util.DataWindow(dataWindow);
         this.dataTrail = new webgazer.util.DataWindow(trailDataWindow);
 
-        // Max Test
-        this.coefficientsX = []
-        this.coefficientsY = []
+        // Regression coefficients
+        let numPixels = resizeWidth * resizeHeight * 2
+        this.coefficientsX = new Array(numPixels).fill(0);
+        this.coefficientsY = new Array(numPixels).fill(0);
         this.hasRegressed = false
 
         // Initialize Kalman filter [20200608 xk] what do we do about parameters?
@@ -43776,19 +43777,17 @@ function supports_ogg_theora_video() {
 
     };
 
-    // TODO: Document this
+    /**
+     * Updates the regression coefficients for predictions
+     */
     webgazer.reg.RidgeReg.prototype.regress = function(){
+
         var screenXArray = this.screenXClicksArray.data;
         var screenYArray = this.screenYClicksArray.data;
         var eyeFeatures = this.eyeFeaturesClicks.data;
 
-
-        let ridge1 = performance.now();
         this.coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
         this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
-        let ridge2 = performance.now();
-        console.log("Regression took " + (ridge2 - ridge1) + " time");
-        console.log("Resolution: " + resizeWidth + " " + resizeHeight)
     } 
 
     /**
@@ -43819,13 +43818,13 @@ function supports_ogg_theora_video() {
             this.dataTrail.push({'eyes':eyes, 'screenPos':screenPos, 'type':type});
         }
 
+        // Initialize coefficient list
         if (!this.hasRegressed){
-            this.regress();
+            let numPixels = resizeWidth * resizeHeight * 2
+            this.coefficientsX = new Array(numPixels).fill(0);
+            this.coefficientsY = new Array(numPixels).fill(0);
             this.hasRegressed = true;
-            console.log("addData")
         }
-        // this.regress();
-
 
 
         // [20180730 JT] Why do we do this? It doesn't return anything...
@@ -43846,23 +43845,15 @@ function supports_ogg_theora_video() {
         if (!eyesObj || this.eyeFeaturesClicks.length === 0) {
             return null;
         }
-        // var acceptTime = performance.now() - this.trailTime;
-        // var trailX = [];
-        // var trailY = [];
-        // var trailFeat = [];
-        // for (var i = 0; i < this.trailDataWindow; i++) {
-        //     if (this.trailTimes.get(i) > acceptTime) {
-        //         trailX.push(this.screenXTrailArray.get(i));
-        //         trailY.push(this.screenYTrailArray.get(i));
-        //         trailFeat.push(this.eyeFeaturesTrail.get(i));
-        //     }
-        // }
 
+        // Initialize coefficient list
         if (!this.hasRegressed){
-            this.regress();
+            let numPixels = resizeWidth * resizeHeight * 2
+            this.coefficientsX = new Array(numPixels).fill(0);
+            this.coefficientsY = new Array(numPixels).fill(0);
             this.hasRegressed = true;
-            console.log("predict")
         }
+
         var eyeFeats = getEyeFeats(eyesObj);
         var predictedX = 0;
         for(var i=0; i< eyeFeats.length; i++){
@@ -43893,7 +43884,6 @@ function supports_ogg_theora_video() {
         }
     };
 
-       
 
     /**
      * Add given data to current data set then,
