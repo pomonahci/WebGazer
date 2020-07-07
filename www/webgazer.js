@@ -43615,8 +43615,8 @@ function supports_ogg_theora_video() {
     webgazer.params = webgazer.params || {};
 
     var ridgeParameter = Math.pow(10,-5);
-    var resizeWidth = 10;
-    var resizeHeight = 6;
+    var resizeWidth = 50;
+    var resizeHeight = 30;
     var dataWindow = 700;
     var trailDataWindow = 10;
 
@@ -43737,6 +43737,11 @@ function supports_ogg_theora_video() {
         this.dataClicks = new webgazer.util.DataWindow(dataWindow);
         this.dataTrail = new webgazer.util.DataWindow(trailDataWindow);
 
+        // Max Test
+        this.coefficientsX = []
+        this.coefficientsY = []
+        this.hasRegressed = false
+
         // Initialize Kalman filter [20200608 xk] what do we do about parameters?
         // [20200611 xk] unsure what to do w.r.t. dimensionality of these matrices. So far at least 
         //               by my own anecdotal observation a 4x1 x vector seems to work alright
@@ -43768,7 +43773,23 @@ function supports_ogg_theora_video() {
         var x_initial = [[500], [500], [0], [0]]; // Initial measurement matrix
 
         this.kalman = new self.webgazer.util.KalmanFilter(F, H, Q, R, P_initial, x_initial);
+
+        this.regress();
     };
+
+    // TODO: Document this
+    webgazer.reg.RidgeReg.prototype.regress = function(){
+        var screenXArray = this.screenXClicksArray.data;
+        var screenYArray = this.screenYClicksArray.data;
+        var eyeFeatures = this.eyeFeaturesClicks.data;
+
+
+        let ridge1 = performance.now();
+        this.coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
+        this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
+        let ridge2 = performance.now();
+        console.log("Regression took " + (ridge2 - ridge1) + " time");
+    } 
 
     /**
      * Add given data from eyes
@@ -43798,6 +43819,15 @@ function supports_ogg_theora_video() {
             this.dataTrail.push({'eyes':eyes, 'screenPos':screenPos, 'type':type});
         }
 
+        if (!this.hasRegressed){
+            this.regress();
+            this.hasRegressed = true;
+            console.log("addData")
+        }
+        // this.regress();
+
+
+
         // [20180730 JT] Why do we do this? It doesn't return anything...
         // But as JS is pass by reference, it still affects it.
         //
@@ -43816,33 +43846,31 @@ function supports_ogg_theora_video() {
         if (!eyesObj || this.eyeFeaturesClicks.length === 0) {
             return null;
         }
-        var acceptTime = performance.now() - this.trailTime;
-        var trailX = [];
-        var trailY = [];
-        var trailFeat = [];
-        for (var i = 0; i < this.trailDataWindow; i++) {
-            if (this.trailTimes.get(i) > acceptTime) {
-                trailX.push(this.screenXTrailArray.get(i));
-                trailY.push(this.screenYTrailArray.get(i));
-                trailFeat.push(this.eyeFeaturesTrail.get(i));
-            }
+        // var acceptTime = performance.now() - this.trailTime;
+        // var trailX = [];
+        // var trailY = [];
+        // var trailFeat = [];
+        // for (var i = 0; i < this.trailDataWindow; i++) {
+        //     if (this.trailTimes.get(i) > acceptTime) {
+        //         trailX.push(this.screenXTrailArray.get(i));
+        //         trailY.push(this.screenYTrailArray.get(i));
+        //         trailFeat.push(this.eyeFeaturesTrail.get(i));
+        //     }
+        // }
+
+        if (!this.hasRegressed){
+            this.regress();
+            this.hasRegressed = true;
+            console.log("predict")
         }
-
-        var screenXArray = this.screenXClicksArray.data.concat(trailX);
-        var screenYArray = this.screenYClicksArray.data.concat(trailY);
-        var eyeFeatures = this.eyeFeaturesClicks.data.concat(trailFeat);
-
-        var coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
-        var coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
-
         var eyeFeats = getEyeFeats(eyesObj);
         var predictedX = 0;
         for(var i=0; i< eyeFeats.length; i++){
-            predictedX += eyeFeats[i] * coefficientsX[i];
+            predictedX += eyeFeats[i] * this.coefficientsX[i];
         }
         var predictedY = 0;
         for(var i=0; i< eyeFeats.length; i++){
-            predictedY += eyeFeats[i] * coefficientsY[i];
+            predictedY += eyeFeats[i] * this.coefficientsY[i];
         }
 
         predictedX = Math.floor(predictedX);
@@ -43864,6 +43892,8 @@ function supports_ogg_theora_video() {
             };
         }
     };
+
+       
 
     /**
      * Add given data to current data set then,
@@ -45101,7 +45131,10 @@ function store_points(x, y, k) {
             return null;
         }
         for (var reg in regs) {
+            let t0 = performance.now();
             predictions.push(regs[reg].predict(latestEyeFeatures));
+            let t1 = performance.now();
+            console.log("Overall prediction took " + (t1 - t0) + " time")
         }
         if (regModelIndex !== undefined) {
             return predictions[regModelIndex] === null ? null : {
@@ -45127,7 +45160,7 @@ function store_points(x, y, k) {
 
     async function loop() {
         if (!paused) {
-
+            console.log("loop");
             // [20200617 XK] TODO: there is currently lag between the camera input and the face overlay. This behavior
             // is not seen in the facemesh demo. probably need to optimize async implementation. I think the issue lies
             // in the implementation of getPrediction().
@@ -45513,6 +45546,9 @@ function store_points(x, y, k) {
         return webgazer;
     };
 
+    webgazer.regress = function(){
+        regs[0].regress();
+    }
 
     /**
      * Checks if webgazer has finished initializing after calling begin()
