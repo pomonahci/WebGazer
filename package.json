@@ -14,6 +14,8 @@
     "jsdoc": "^3.6.3"
   },
   "dependencies": {
+    "gpu.js": "^2.9.4",
+    "mathjs": "^7.0.2",
     "mime": "^2.4.3"
   }
 }

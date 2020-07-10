@@ -130,8 +130,6 @@
     };
 
     /**
-     * Increase contrast of an image.
-     * 
      * Code from Martin Tschirsich, Copyright (c) 2012.
      * https://github.com/mtschirs/js-objectdetect/blob/gh-pages/js/objectdetect.js
      * 
@@ -166,7 +164,7 @@
         }
         
         // Compute integral histogram:
-        var norm = 255 * step / srcLength,
+        var norm = 1.0 * step / srcLength, // Normalize to 1.0, not 255
             prev = 0;
         for (var i = 0; i < 256; ++i) {
             var h = hist[i];

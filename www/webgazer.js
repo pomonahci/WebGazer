@@ -43614,9 +43614,10 @@ function supports_ogg_theora_video() {
     webgazer.util = webgazer.util || {};
     webgazer.params = webgazer.params || {};
 
-    var ridgeParameter = Math.pow(10,-5);
-    var resizeWidth = 50;
-    var resizeHeight = 30;
+    var ridgeParameter = Math.pow(10,-3);
+    var resizeWidth = 48;
+    var resizeHeight = 24;
+    var histStep = 5; // default set to 5, shouldn't be more than resizeWidth or resizeHeight
     var dataWindow = 700;
     var trailDataWindow = 10;
 
@@ -43624,34 +43625,52 @@ function supports_ogg_theora_video() {
      * Performs ridge regression, according to the Weka code.
      * @param {Array} y - corresponds to screen coordinates (either x or y) for each of n click events
      * @param {Array.<Array.<Number>>} X - corresponds to gray pixel features (120 pixels for both eyes) for each of n clicks
-     * @param {Array} k - ridge parameter
+     * @param {Number} k - ridge parameter
      * @return{Array} regression coefficients
      */
     function ridge(y, X, k){
+
+        console.log("recalculating ridge regression...");
+
+        var tensor_y = tf.tensor2d(y, [y.length, (y[0].length ? y[0].length : 0)], 'float32');
+        var tensor_X = tf.tensor2d(X, [X.length, (X[0].length ? X[0].length : 0)], 'float32');
+
         var nc = X[0].length;
         var m_Coefficients = new Array(nc);
-        var xt = webgazer.mat.transpose(X);
+
+        var tensor_xt = tensor_X.transpose();
+        
         var solution = new Array();
         var success = true;
         do{
-            var ss = webgazer.mat.mult(xt,X);
-            // Set ridge regression adjustment
-            for (var i = 0; i < nc; i++) {
-                ss[i][i] = ss[i][i] + k;
+
+            var tensor_ss = tf.matMul(tensor_xt,tensor_X);
+
+            // Set ridge regression adjustment by creating matrix with k in the diagonal and adding it to ss
+            var tensor_k = tf.eye(nc).mul(k);
+
+            var tensor_ss_k = tensor_ss.add(tensor_k);
+            
+            // Carry out the regression
+            var tensor_bb = tf.matMul(tensor_xt, tensor_y);
+
+            var tbb = Array.from(tensor_bb.arraySync()); // TODO: make this async
+            var tss = Array.from(tensor_ss_k.arraySync()); // TODO: same here
+
+            for(var i = 0; i < nc; i++) {
+                m_Coefficients[i] = tbb[i][0];
             }
 
-            // Carry out the regression
-            var bb = webgazer.mat.mult(xt,y);
-            for(var i = 0; i < nc; i++) {
-                m_Coefficients[i] = bb[i][0];
-            }
             try{
                 var n = (m_Coefficients.length !== 0 ? m_Coefficients.length/m_Coefficients.length: 0);
                 if (m_Coefficients.length*n !== m_Coefficients.length){
                     console.log('Array length must be a multiple of m')
                 }
-                solution = (ss.length === ss[0].length ? (numeric.LUsolve(numeric.LU(ss,true),bb)) : (webgazer.mat.QRDecomposition(ss,bb)));
-
+                // solution = (tss.length === tss[0].length ? (math.lusolve(math.lup(tss), tbb)._data.flat()) : (webgazer.mat.QRDecomposition(tss,tbb)));
+                // solution = (ss.length === ss[0].length ? (math.lusolve(math.lup(ss), bb)._data.flat()) : (webgazer.mat.QRDecomposition(ss,bb)));
+                solution = (tss.length === tss[0].length ? (numeric.LUsolve(numeric.LU(tss,true),tbb)) : (webgazer.mat.QRDecomposition(tss,tbb)));
+                // solution = (ss.length === ss[0].length ? (numeric.LUsolve(numeric.LU(ss,true),bb)) : (webgazer.mat.QRDecomposition(ss,bb)));
+                // console.log(solution);
                 for (var i = 0; i < nc; i++){
                     m_Coefficients[i] = solution[i];
                 }
@@ -43663,7 +43682,9 @@ function supports_ogg_theora_video() {
                 success = false;
             }
         } while (!success);
+        console.log("done");
         return m_Coefficients;
+        // }
     }
     
     /**
@@ -43679,12 +43700,15 @@ function supports_ogg_theora_video() {
         var rightGray = webgazer.util.grayscale(resizedright.data, resizedright.width, resizedright.height);
 
         var histLeft = [];
-        webgazer.util.equalizeHistogram(leftGray, 5, histLeft);
         var histRight = [];
-        webgazer.util.equalizeHistogram(rightGray, 5, histRight);
+
+        webgazer.util.equalizeHistogram(leftGray, histStep, histLeft);
+        webgazer.util.equalizeHistogram(rightGray, histStep, histRight);
 
         var leftGrayArray = Array.prototype.slice.call(histLeft);
         var rightGrayArray = Array.prototype.slice.call(histRight);
+        // var leftGrayArray = Array.prototype.slice.call(leftGray);
+        // var rightGrayArray = Array.prototype.slice.call(rightGray);
 
         return leftGrayArray.concat(rightGrayArray);
     }
@@ -43783,12 +43807,11 @@ function supports_ogg_theora_video() {
         var screenYArray = this.screenYClicksArray.data;
         var eyeFeatures = this.eyeFeaturesClicks.data;
 
-
-        let ridge1 = performance.now();
+        // let ridge1 = performance.now();
         this.coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
         this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
-        let ridge2 = performance.now();
-        console.log("Regression took " + (ridge2 - ridge1) + " time");
+        // let ridge2 = performance.now();
+        // console.log("Regression took " + (ridge2 - ridge1) + " time");
     } 
 
     /**
@@ -43822,7 +43845,6 @@ function supports_ogg_theora_video() {
         if (!this.hasRegressed){
             this.regress();
             this.hasRegressed = true;
-            console.log("addData")
         }
         // this.regress();
 
@@ -43861,7 +43883,6 @@ function supports_ogg_theora_video() {
         if (!this.hasRegressed){
             this.regress();
             this.hasRegressed = true;
-            console.log("predict")
         }
         var eyeFeats = getEyeFeats(eyesObj);
         var predictedX = 0;
@@ -44582,8 +44603,6 @@ function supports_ogg_theora_video() {
     };
 
     /**
-     * Increase contrast of an image.
-     * 
      * Code from Martin Tschirsich, Copyright (c) 2012.
      * https://github.com/mtschirs/js-objectdetect/blob/gh-pages/js/objectdetect.js
      * 
@@ -44618,7 +44637,7 @@ function supports_ogg_theora_video() {
         }
         
         // Compute integral histogram:
-        var norm = 255 * step / srcLength,
+        var norm = 1.0 * step / srcLength, // Normalize to 1.0, not 255
             prev = 0;
         for (var i = 0; i < 256; ++i) {
             var h = hist[i];
@@ -45131,10 +45150,10 @@ function store_points(x, y, k) {
             return null;
         }
         for (var reg in regs) {
-            let t0 = performance.now();
+            // let t0 = performance.now();
             predictions.push(regs[reg].predict(latestEyeFeatures));
-            let t1 = performance.now();
-            console.log("Overall prediction took " + (t1 - t0) + " time")
+            // let t1 = performance.now();
+            // console.log("Overall prediction took " + (t1 - t0) + " time")
         }
         if (regModelIndex !== undefined) {
             return predictions[regModelIndex] === null ? null : {
@@ -45160,7 +45179,6 @@ function store_points(x, y, k) {
 
     async function loop() {
         if (!paused) {
-            console.log("loop");
             // [20200617 XK] TODO: there is currently lag between the camera input and the face overlay. This behavior
             // is not seen in the facemesh demo. probably need to optimize async implementation. I think the issue lies
             // in the implementation of getPrediction().
