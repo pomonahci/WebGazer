@@ -43606,6 +43606,7 @@ function supports_ogg_theora_video() {
 }());
 
 'use strict';
+
 (function(window) {
 
     window.webgazer = window.webgazer || {};
@@ -43617,7 +43618,7 @@ function supports_ogg_theora_video() {
     var ridgeParameter = Math.pow(10,-3);
     var resizeWidth = 48;
     var resizeHeight = 24;
-    var histStep = 5; // default set to 5, shouldn't be more than resizeWidth or resizeHeight
+    var histStep = 5; // default set to 5, shouldn't be less than resizeWidth or resizeHeight
     var dataWindow = 700;
     var trailDataWindow = 10;
 
@@ -43630,37 +43631,33 @@ function supports_ogg_theora_video() {
      */
     function ridge(y, X, k){
 
-        console.log("recalculating ridge regression...");
+        console.log(resizeWidth + "," + resizeHeight);
 
-        var tensor_y = tf.tensor2d(y, [y.length, (y[0].length ? y[0].length : 0)], 'float32');
-        var tensor_X = tf.tensor2d(X, [X.length, (X[0].length ? X[0].length : 0)], 'float32');
+        console.log("recalculating ridge...")
+
+        var ridge1 = performance.now();
 
         var nc = X[0].length;
         var m_Coefficients = new Array(nc);
-
-        var tensor_xt = tensor_X.transpose();
+        var xt = webgazer.mat.transpose(X);
         
         var solution = new Array();
         var success = true;
+
         do{
-
-            var tensor_ss = tf.matMul(tensor_xt,tensor_X);
-
-            // Set ridge regression adjustment by creating matrix with k in the diagonal and adding it to ss
-            var tensor_k = tf.eye(nc).mul(k);
-
-            var tensor_ss_k = tensor_ss.add(tensor_k);
-            
-            // Carry out the regression
-            var tensor_bb = tf.matMul(tensor_xt, tensor_y);
-
-            var tbb = Array.from(tensor_bb.arraySync()); // TODO: make this async
-            var tss = Array.from(tensor_ss_k.arraySync()); // TODO: same here
-
-            for(var i = 0; i < nc; i++) {
-                m_Coefficients[i] = tbb[i][0];
+            var ss = webgazer.mat.mult(xt,X);
+            // Set ridge regression adjustment
+            for (var i = 0; i < nc; i++) {
+                ss[i][i] = ss[i][i] + k;
             }
 
+            // Carry out the regression
+            var bb = webgazer.mat.mult(xt,y);
+            for(var i = 0; i < nc; i++) {
+                m_Coefficients[i] = bb[i][0];
+            }
+
+            var ridge2 = performance.now();
             try{
                 var n = (m_Coefficients.length !== 0 ? m_Coefficients.length/m_Coefficients.length: 0);
                 if (m_Coefficients.length*n !== m_Coefficients.length){
@@ -43668,8 +43665,8 @@ function supports_ogg_theora_video() {
                 }
                 // solution = (tss.length === tss[0].length ? (math.lusolve(math.lup(tss), tbb)._data.flat()) : (webgazer.mat.QRDecomposition(tss,tbb)));
                 // solution = (ss.length === ss[0].length ? (math.lusolve(math.lup(ss), bb)._data.flat()) : (webgazer.mat.QRDecomposition(ss,bb)));
-                solution = (tss.length === tss[0].length ? (numeric.LUsolve(numeric.LU(tss,true),tbb)) : (webgazer.mat.QRDecomposition(tss,tbb)));
-                // solution = (ss.length === ss[0].length ? (numeric.LUsolve(numeric.LU(ss,true),bb)) : (webgazer.mat.QRDecomposition(ss,bb)));
+                console.log("solving...")
+                solution = (ss.length === ss[0].length ? (numeric.LUsolve(numeric.LU(ss,true),bb)) : (webgazer.mat.QRDecomposition(ss,bb)));
                 // console.log(solution);
                 for (var i = 0; i < nc; i++){
                     m_Coefficients[i] = solution[i];
@@ -43682,7 +43679,8 @@ function supports_ogg_theora_video() {
                 success = false;
             }
         } while (!success);
-        console.log("done");
+        var ridge3 = performance.now();
+        console.log("matrix mult: " + (ridge2 - ridge1) + "ms, solving: " + (ridge3 - ridge2) + "ms");
         return m_Coefficients;
         // }
     }
@@ -43707,8 +43705,6 @@ function supports_ogg_theora_video() {
 
         var leftGrayArray = Array.prototype.slice.call(histLeft);
         var rightGrayArray = Array.prototype.slice.call(histRight);
-        // var leftGrayArray = Array.prototype.slice.call(leftGray);
-        // var rightGrayArray = Array.prototype.slice.call(rightGray);
 
         return leftGrayArray.concat(rightGrayArray);
     }
