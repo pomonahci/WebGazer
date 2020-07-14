@@ -43615,8 +43615,8 @@ function supports_ogg_theora_video() {
     webgazer.params = webgazer.params || {};
 
     var ridgeParameter = Math.pow(10,-5);
-    var resizeWidth = 50;
-    var resizeHeight = 30;
+    var resizeWidth = 20;
+    var resizeHeight = 10;
     var dataWindow = 700;
     var trailDataWindow = 10;
 
@@ -43737,9 +43737,10 @@ function supports_ogg_theora_video() {
         this.dataClicks = new webgazer.util.DataWindow(dataWindow);
         this.dataTrail = new webgazer.util.DataWindow(trailDataWindow);
 
-        // Max Test
-        this.coefficientsX = []
-        this.coefficientsY = []
+        // Regression coefficients
+        let numPixels = resizeWidth * resizeHeight * 2
+        this.coefficientsX = new Array(numPixels).fill(0);
+        this.coefficientsY = new Array(numPixels).fill(0);
         this.hasRegressed = false
 
         // Initialize Kalman filter [20200608 xk] what do we do about parameters?
@@ -43774,17 +43775,17 @@ function supports_ogg_theora_video() {
 
         this.kalman = new self.webgazer.util.KalmanFilter(F, H, Q, R, P_initial, x_initial);
 
-        this.regress();
     };
 
-    // TODO: Document this
+    /**
+     * Updates the regression coefficients for predictions
+     */
     webgazer.reg.RidgeReg.prototype.regress = function(){
+
         var screenXArray = this.screenXClicksArray.data;
         var screenYArray = this.screenYClicksArray.data;
         var eyeFeatures = this.eyeFeaturesClicks.data;
 
-
-        let ridge1 = performance.now();
         this.coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
         this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
         let ridge2 = performance.now();
@@ -43819,13 +43820,14 @@ function supports_ogg_theora_video() {
             this.dataTrail.push({'eyes':eyes, 'screenPos':screenPos, 'type':type});
         }
 
+        // Initialize coefficient list
         if (!this.hasRegressed){
-            this.regress();
+            let numPixels = resizeWidth * resizeHeight * 2
+            this.coefficientsX = new Array(numPixels).fill(0);
+            this.coefficientsY = new Array(numPixels).fill(0);
             this.hasRegressed = true;
             // console.log("addData")
         }
-        // this.regress();
-
 
 
         // [20180730 JT] Why do we do this? It doesn't return anything...
@@ -43846,23 +43848,16 @@ function supports_ogg_theora_video() {
         if (!eyesObj || this.eyeFeaturesClicks.length === 0) {
             return null;
         }
-        // var acceptTime = performance.now() - this.trailTime;
-        // var trailX = [];
-        // var trailY = [];
-        // var trailFeat = [];
-        // for (var i = 0; i < this.trailDataWindow; i++) {
-        //     if (this.trailTimes.get(i) > acceptTime) {
-        //         trailX.push(this.screenXTrailArray.get(i));
-        //         trailY.push(this.screenYTrailArray.get(i));
-        //         trailFeat.push(this.eyeFeaturesTrail.get(i));
-        //     }
-        // }
 
+        // Initialize coefficient list
         if (!this.hasRegressed){
-            this.regress();
+            let numPixels = resizeWidth * resizeHeight * 2
+            this.coefficientsX = new Array(numPixels).fill(0);
+            this.coefficientsY = new Array(numPixels).fill(0);
             this.hasRegressed = true;
             // console.log("predict")
         }
+
         var eyeFeats = getEyeFeats(eyesObj);
         var predictedX = 0;
         for(var i=0; i< eyeFeats.length; i++){
@@ -43893,7 +43888,6 @@ function supports_ogg_theora_video() {
         }
     };
 
-       
 
     /**
      * Add given data to current data set then,
@@ -44895,6 +44889,8 @@ function store_points(x, y, k) {
     webgazer.params.faceOverlayId = 'webgazerFaceOverlay';
     webgazer.params.faceFeedbackBoxId = 'webgazerFaceFeedbackBox';
     webgazer.params.gazeDotId = 'webgazerGazeDot'
+
+    
     
     webgazer.params.videoViewerWidth = 320;
     webgazer.params.videoViewerHeight = 240;
@@ -44902,6 +44898,7 @@ function store_points(x, y, k) {
     webgazer.params.faceFeedbackBoxRatio = 0.66;
 
     // View options
+    webgazer.params.useVideoFile = false;
     webgazer.params.showVideo = true;
     webgazer.params.mirrorVideo = true;
     webgazer.params.showFaceOverlay = true;
@@ -45128,7 +45125,6 @@ function store_points(x, y, k) {
             return null;
         }
         for (var reg in regs) {
-            let t0 = performance.now();
             predictions.push(regs[reg].predict(latestEyeFeatures));
             let t1 = performance.now();
             // console.log("Overall prediction took " + (t1 - t0) + " time")
@@ -45743,8 +45739,9 @@ function store_points(x, y, k) {
      *  @return {webgazer} this
      */
     webgazer.setStaticVideo = function(videoLoc) {
-       debugVideoLoc = videoLoc;
-       return webgazer;
+        debugVideoLoc = videoLoc;
+        webgazer.params.useVideoFile = true;
+        return webgazer;
     };
 
     /**

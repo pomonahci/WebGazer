@@ -1,3 +1,5 @@
+var videoLoc = "../test.webm" // [20200702 xk] TODO: Source needs to be 4:3 resolution. Unsure how to make this adaptive
+
 window.onload = function() {
 
     // Use 320x240 for camera. For video input, calculate the correct aspect ratio

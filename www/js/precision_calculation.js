@@ -14,12 +14,25 @@ function calculatePrecision(past50Array) {
   var staringPointX = windowWidth / 2;
   var staringPointY = windowHeight / 2;
 
-  var precisionPercentages = new Array(50);
-  calculatePrecisionPercentages(precisionPercentages, windowHeight, x50, y50, staringPointX, staringPointY);
-  var precision = calculateAverage(precisionPercentages);
+  var distanceErrors = new Array(50);
+  var precisions = new Array(50);
+  calculateErrors(distanceErrors, precisions, windowHeight, x50, y50, staringPointX, staringPointY);
+  var averageError = calculateAverage(distanceErrors);
+  var totalSquaredError = 0;
+  for (var i = 0; i < distanceErrors.length; i++) {
+    // Calculate total squared error for st dev calculation
+    totalSquaredError += Math.pow(distanceErrors[i] - averageError, 2);
+  }
+  var standardDeviation = Math.sqrt(totalSquaredError / distanceErrors.length);
 
-  // Return the precision measurement as a rounded percentage
-  return Math.round(precision);
+  var averagePrecision = calculateAverage(precisions);
+
+  // Return the error measurements
+  return {
+    avg: Math.round(averageError),
+    stdev: Math.round(standardDeviation),
+    precision: Math.round(averagePrecision)
+  }
 };
 
 /*
@@ -27,12 +40,15 @@ function calculatePrecision(past50Array) {
  * the prediction point from the centre point (uses the window height as
  * lower threshold 0%)
  */
-function calculatePrecisionPercentages(precisionPercentages, windowHeight, x50, y50, staringPointX, staringPointY) {
+function calculateErrors(distanceErrors, precisions, windowHeight, x50, y50, staringPointX, staringPointY) {
   for (x = 0; x < 50; x++) {
     // Calculate distance between each prediction and staring point
     var xDiff = staringPointX - x50[x];
     var yDiff = staringPointY - y50[x];
     var distance = Math.sqrt((xDiff * xDiff) + (yDiff * yDiff));
+
+    // Store the distance
+    distanceErrors[x] = distance;
 
     // Calculate precision percentage
     var halfWindowHeight = windowHeight / 2;
@@ -46,18 +62,18 @@ function calculatePrecisionPercentages(precisionPercentages, windowHeight, x50, 
     }
 
     // Store the precision
-    precisionPercentages[x] = precision;
+    precisions[x] = precision;
   }
 }
 
 /*
- * Calculates the average of all precision percentages calculated
+ * Calculates the average of all values in array
  */
-function calculateAverage(precisionPercentages) {
-  var precision = 0;
+function calculateAverage(values) {
+  var avg = 0;
   for (x = 0; x < 50; x++) {
-    precision += precisionPercentages[x];
+    avg += values[x];
   }
-  precision = precision / 50;
-  return precision;
+  avg = avg / 50;
+  return avg;
 }
