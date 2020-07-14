@@ -181,7 +181,7 @@
         this.coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
         this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
         let ridge2 = performance.now();
-        console.log("Regression took " + (ridge2 - ridge1) + " time");
+        // console.log("Regression took " + (ridge2 - ridge1) + " time");
     } 
 
     /**
@@ -215,7 +215,7 @@
         if (!this.hasRegressed){
             this.regress();
             this.hasRegressed = true;
-            console.log("addData")
+            // console.log("addData")
         }
         // this.regress();
 
@@ -254,7 +254,7 @@
         if (!this.hasRegressed){
             this.regress();
             this.hasRegressed = true;
-            console.log("predict")
+            // console.log("predict")
         }
         var eyeFeats = getEyeFeats(eyesObj);
         var predictedX = 0;

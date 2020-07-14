@@ -43788,7 +43788,7 @@ function supports_ogg_theora_video() {
         this.coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
         this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
         let ridge2 = performance.now();
-        console.log("Regression took " + (ridge2 - ridge1) + " time");
+        // console.log("Regression took " + (ridge2 - ridge1) + " time");
     } 
 
     /**
@@ -43822,7 +43822,7 @@ function supports_ogg_theora_video() {
         if (!this.hasRegressed){
             this.regress();
             this.hasRegressed = true;
-            console.log("addData")
+            // console.log("addData")
         }
         // this.regress();
 
@@ -43861,7 +43861,7 @@ function supports_ogg_theora_video() {
         if (!this.hasRegressed){
             this.regress();
             this.hasRegressed = true;
-            console.log("predict")
+            // console.log("predict")
         }
         var eyeFeats = getEyeFeats(eyesObj);
         var predictedX = 0;
@@ -45131,7 +45131,7 @@ function store_points(x, y, k) {
             let t0 = performance.now();
             predictions.push(regs[reg].predict(latestEyeFeatures));
             let t1 = performance.now();
-            console.log("Overall prediction took " + (t1 - t0) + " time")
+            // console.log("Overall prediction took " + (t1 - t0) + " time")
         }
         if (regModelIndex !== undefined) {
             return predictions[regModelIndex] === null ? null : {
@@ -45157,7 +45157,6 @@ function store_points(x, y, k) {
 
     async function loop() {
         if (!paused) {
-            console.log("loop");
             // [20200617 XK] TODO: there is currently lag between the camera input and the face overlay. This behavior
             // is not seen in the facemesh demo. probably need to optimize async implementation. I think the issue lies
             // in the implementation of getPrediction().
@@ -45367,7 +45366,12 @@ function store_points(x, y, k) {
 
         videoElement = document.createElement('video');
         videoElement.id = webgazer.params.videoElementId;
-        videoElement.srcObject = videoStream; 
+        if (debugVideoLoc) {
+            videoElement.src = videoStream;
+            videoElement.loop = true;
+        } else {
+            videoElement.srcObject = videoStream; 
+        }
         videoElement.autoplay = true;
         videoElement.style.display = webgazer.params.showVideo ? 'block' : 'none';
         videoElement.style.position = 'fixed';
