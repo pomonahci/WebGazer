@@ -74,6 +74,11 @@
         var rightOriginY = Math.round(Math.min(positions[414][1], positions[257][1], positions[467][1]));
         var rightWidth = Math.round(Math.max(positions[467][0], positions[359][0], positions[255][0]) - rightOriginX);
         var rightHeight = Math.round(Math.max(positions[341][1], positions[253][1], positions[255][1]) - rightOriginY);
+        
+        // Head pose testing
+        var leftEyeCorner = positions[33];
+        var rightEyeCorner = positions[263];
+        var noseTip = positions[1];
 
         if (leftWidth === 0 || rightWidth === 0){
           console.log('an eye patch had zero width');
@@ -94,7 +99,9 @@
             imagex: leftOriginX,
             imagey: leftOriginY,
             width: leftWidth,
-            height: leftHeight
+            height: leftHeight,
+            corner: leftEyeCorner,
+            nose: noseTip
         };
 
         var rightImageData = imageCanvas.getContext('2d').getImageData(rightOriginX, rightOriginY, rightWidth, rightHeight);
@@ -103,7 +110,9 @@
             imagex: rightOriginX,
             imagey: rightOriginY,
             width: rightWidth,
-            height: rightHeight
+            height: rightHeight,
+            corner: rightEyeCorner,
+            nose: noseTip
         };
 
         this.predictionReady = true;

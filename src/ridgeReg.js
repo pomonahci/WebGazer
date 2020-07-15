@@ -7,9 +7,9 @@
     webgazer.util = webgazer.util || {};
     webgazer.params = webgazer.params || {};
 
-    var ridgeParameter = Math.pow(10,-5);
-    var resizeWidth = 20;
-    var resizeHeight = 10;
+    var ridgeParameter = Math.pow(10, -5);
+    var resizeWidth = 40;
+    var resizeHeight = 20;
     var dataWindow = 700;
     var trailDataWindow = 10;
 
@@ -79,7 +79,45 @@
         var leftGrayArray = Array.prototype.slice.call(histLeft);
         var rightGrayArray = Array.prototype.slice.call(histRight);
 
-        return leftGrayArray.concat(rightGrayArray);
+        var allFeats = leftGrayArray.concat(rightGrayArray);
+
+        // Add headpose stats
+        var rightCorner = eyes.right.corner;
+        var leftCorner = eyes.left.corner;
+
+        // Creates a user specific distance
+        // var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2 + (rightCorner[2] - leftCorner[2]) ** 2);
+        var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2);
+        allFeats.push(distance / 500);
+
+        // Finds an estimate for head location and standardize it
+        // TODO: Make this automatically adjust for different window sizes
+        var locationX = Math.floor((rightCorner[0] + leftCorner[0]) / 2)
+        var locationY = Math.floor((rightCorner[1] + leftCorner[1]) / 2)
+        allFeats.push(locationX / 1920)
+        allFeats.push(locationY / 1080)
+
+        // Find an estimate for head pose using point between eyes and nose tip
+        eyeMidPoint = [(rightCorner[0] + leftCorner[0]) / 2, (rightCorner[1] + leftCorner[1]) / 2, (rightCorner[2] + leftCorner[2]) / 2];
+        nose = eyes.left.nose;
+        headPose = [nose[0] - eyeMidPoint[0], nose[1] - eyeMidPoint[1], nose[2] - eyeMidPoint[2]];
+
+        // Make it a unit vector
+        magnitude = headPose[0] **2 + headPose[1] **2 + headPose[2] **2;
+        headPose = [headPose[0] / magnitude, headPose[1] / magnitude, headPose[2] / magnitude];
+
+        // Find the angle it creates and normalize it by dividing by pi/2
+        xAngle = Math.atan(headPose[0]/headPose[2]) / (3.1415 / 2);
+        yAngle = Math.atan(headPose[1]/headPose[2]) / (3.1415 / 2);
+        headPose = [xAngle, yAngle]
+        allFeats.concat(headPose);
+
+        // Find the head tilt angle
+        var tilt = Math.atan((rightCorner[1] - leftCorner[1]) / (rightCorner[0] - leftCorner[0])) / (3.1415 / 2)
+        allFeats.push(tilt)
+  
+        return allFeats;
+
     }
 
     //TODO: still usefull ???
@@ -134,6 +172,8 @@
         let numPixels = resizeWidth * resizeHeight * 2
         this.coefficientsX = new Array(numPixels).fill(0);
         this.coefficientsY = new Array(numPixels).fill(0);
+        this.muList = new Array(numPixels).fill(0);
+        this.sdList = new Array(numPixels).fill(0);
         this.hasRegressed = false
 
         // Initialize Kalman filter [20200608 xk] what do we do about parameters?
@@ -170,6 +210,7 @@
 
     };
 
+
     /**
      * Updates the regression coefficients for predictions
      */
@@ -182,6 +223,7 @@
         this.coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
         this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
     } 
+
 
     /**
      * Add given data from eyes
@@ -200,7 +242,9 @@
             this.screenXClicksArray.push([screenPos[0]]);
             this.screenYClicksArray.push([screenPos[1]]);
 
+            // This now includes the headpose inputs
             this.eyeFeaturesClicks.push(getEyeFeats(eyes));
+
             this.dataClicks.push({'eyes':eyes, 'screenPos':screenPos, 'type':type});
         } else if (type === 'move') {
             this.screenXTrailArray.push([screenPos[0]]);
@@ -256,11 +300,12 @@
         for(var i=0; i< eyeFeats.length; i++){
             predictedY += eyeFeats[i] * this.coefficientsY[i];
         }
-
+        
         predictedX = Math.floor(predictedX);
         predictedY = Math.floor(predictedY);
 
-        if (window.applyKalmanFilter) {
+        // Check if preidctedX and predictedY are real values, otherwise the kalman filter becomes incorrect
+        if (window.applyKalmanFilter && predictedX && predictedY) {
             // Update Kalman model, and get prediction
             var newGaze = [predictedX, predictedY]; // [20200607 xk] Should we use a 1x4 vector?
             newGaze = this.kalman.update(newGaze);
