@@ -86,8 +86,7 @@
         var leftCorner = eyes.left.corner;
 
         // Creates a user specific distance
-        // var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2 + (rightCorner[2] - leftCorner[2]) ** 2);
-        var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2);
+        var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2 + (rightCorner[2] - leftCorner[2]) ** 2);
         allFeats.push(distance / 500);
 
         // Finds an estimate for head location and standardize it
@@ -124,6 +123,9 @@
         // allFeats.push(tilt)
   
         return allFeats;
+    }
+
+    function standardize(){
 
     }
 
