@@ -344,7 +344,7 @@
                     //store the position of the past fifty occuring tracker preditions
                     store_points(pred.x, pred.y, k);
                     k++;
-                    if (k == 50) {
+                    if (k == numPastPoints) {
                         k = 0;
                     }
                 }
@@ -383,6 +383,13 @@
             if( latestEyeFeatures )
                 regs[reg].addData(latestEyeFeatures, [x, y], eventType);
         }
+        if (window.saveDataAcrossSessions) {
+            // stores the next data point into localforage.
+            setGlobalData(); // [20200721 xk] does this need to have an await?
+
+            // // Debug line
+            // console.log('Model size: ' + JSON.stringify(await localforage.getItem(localstorageDataLabel)).length / 1000000 + 'MB');
+        }
     };
 
     /**
@@ -391,14 +398,6 @@
      */
     var clickListener = async function(event) {
         recordScreenPosition(event.clientX, event.clientY, eventTypes[0]); // eventType[0] === 'click'
-
-        if (window.saveDataAcrossSessions) {
-            // Each click stores the next data point into localforage.
-            await setGlobalData();
-
-            // // Debug line
-            // console.log('Model size: ' + JSON.stringify(await localforage.getItem(localstorageDataLabel)).length / 1000000 + 'MB');
-        }
     };
 
     /**
@@ -930,23 +929,13 @@
      *  Records current screen position for current pupil features.
      *  @param {String} x - position on screen in the x axis
      *  @param {String} y - position on screen in the y axis
-     *  @return {webgazer} this
-     */
-    webgazer.recordScreenPosition = function(x, y) {
-        // give this the same weight that a click gets.
-        recordScreenPosition(x, y, eventTypes[0]);
-        return webgazer;
-    };
-
-    /**
-     *  Records current screen position for current pupil features.
-     *  @param {String} x - position on screen in the x axis
-     *  @param {String} y - position on screen in the y axis
      *  @param {String} eventType - "click" or "move", as per eventTypes
      *  @return {webgazer} this
      */
     webgazer.recordScreenPosition = function(x, y, eventType) {
-        // give this the same weight that a click gets.
+        // by default, give this the same weight that a click gets
+        eventType = eventType ? eventType : eventTypes[0];
+
         recordScreenPosition(x, y, eventType);
         return webgazer;
     };

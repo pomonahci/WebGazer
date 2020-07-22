@@ -1,59 +1,56 @@
 <!DOCTYPE html>
-<!--
-This is an example HTML that shows how WebGazer can be used on a website.
-This file provides the additional features:
-  * An integrated, intuitive and sleek action bar with an informative "help" module accessible at all times
-  * Structured 9-point calibration system
-  * Accuracy measure of predictions based on calibration process
-  * Video feedback regarding face positioning
-  * Improved eye predictions visible to the user
-Instructions on use can be found in the README repository.
--->
 <html>
     <head>
         <META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
         <TITLE>WebGazer Demo</TITLE>
         <link rel="stylesheet" type="text/css" href="./css/style.css">
         <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.min.css">
-        <!-- <script async type="text/javascript" src="./webgazer.js"></script> -->
-        <style>
-            #container {
-                height: 100%;
-                width: 100%;
-            }
-            #target {
-                height: 25px;
-                width: 25px;
-                background-color: rgb(255, 0, 0);
-                border-radius: 50%;
-                position: absolute;
-                /* display: inline-block; */
-            }
-            #myCanvas {
-                float: right;
-            }
-        </style>
+
+        <!-- for targets.js -->
+        <link rel="stylesheet" type="text/css" href="./css/targets.css">
+
+        <script async type="text/javascript" src="./webgazer.js"></script>
     </head>
     <body LANG="en-US" LINK="#0000ff" DIR="LTR">
+
+        <canvas id="plotting_canvas" width="500" height="500" style="cursor:crosshair;"></canvas>
 
         <script src="./node_modules/jquery/dist/jquery.min.js"></script>
         <script src="./node_modules/sweetalert/dist/sweetalert.min.js"></script>
 
-        <!-- <script src="./js/main.js"></script> -->
-        <div id="container">
-            <div id="target"></div>
-        </div>
-
+        <script src="./js/main.js"></script>
         <script src="./js/targets.js"></script>
+        <script src="./js/precision_calculation.js"></script>
+        <script src="./js/precision_store_points.js"></script>
+
         <script type="text/javascript">
-            init();
             // moveTarget(100,100);
-            var points =
-                [   new TargetPoint(300, 300),
-                    new TargetPoint(200, 200),
-                    new TargetPoint(150, 150,),
-                    new TargetPoint(47, 47)];
-            initializeTargetPoints(points);
+            var calibrationPoints = [
+                new TargetPoint(0.5, 0.5),
+                new TargetPoint(0.5, 0.05),
+                new TargetPoint(0.95, 0.05),
+                new TargetPoint(0.95, 0.5),
+                new TargetPoint(0.95, 0.95),
+                new TargetPoint(0.5, 0.95),
+                new TargetPoint(0.05, 0.95),
+                new TargetPoint(0.05, 0.5),
+                new TargetPoint(0.05, 0.05)
+            ];
+
+            var errorPoints = [
+                new TargetPoint(0.47, 0.47)
+                // new TargetPoint(0.1, 0.05),
+                // new TargetPoint(0.76, 0.05),
+                // new TargetPoint(0.95, 0.55),
+                // new TargetPoint(0.35, 0.95),
+                // new TargetPoint(0.85, 0.33),
+                // new TargetPoint(0.12, 0.33),
+                // new TargetPoint(0.30, 0.1),
+                // new TargetPoint(0.60, 0.20)
+            ];
+
+            // var ts = new Targets(points, 'error', 20);
+            // ts.start();
 
         </script>
 
