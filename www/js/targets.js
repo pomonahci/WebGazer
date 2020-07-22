@@ -211,7 +211,7 @@ class Targets {
      * @param {*} count start this at 0, counts up to 5
      */
     recordCalibrations = async function(count) {
-        if (count < numMeasurementsPerPoint) {
+        if (count < this.numMeasurementsPerPoint) {
             webgazer.recordScreenPosition(this.destX, this.destY);
             count++;
             setTimeout(()=>{this.recordCalibrations(count)}, 200);
