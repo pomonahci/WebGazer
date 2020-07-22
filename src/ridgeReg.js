@@ -97,24 +97,31 @@
         allFeats.push(locationX / 1920)
         allFeats.push(locationY / 1080)
 
-        // Find an estimate for head pose using point between eyes and nose tip
-        eyeMidPoint = [(rightCorner[0] + leftCorner[0]) / 2, (rightCorner[1] + leftCorner[1]) / 2, (rightCorner[2] + leftCorner[2]) / 2];
-        nose = eyes.left.nose;
-        headPose = [nose[0] - eyeMidPoint[0], nose[1] - eyeMidPoint[1], nose[2] - eyeMidPoint[2]];
+        // Finding normal vector to the plane created by eye corners and nose
+        var nose = eyes.left.nose;
+        var nl = [leftCorner[0] - nose[0], leftCorner[1] - nose[1], leftCorner[2] - nose[2]];
+        var nr = [rightCorner[0] - nose[0], rightCorner[1] - nose[1], rightCorner[2] - nose[2]];
+        var headPose = [(nl[1]*nr[2] - nl[2]*nr[1]), - (nl[0]*nr[2] - nl[2]*nr[0]) , (nl[0]*nr[1] - nl[1]*nr[0])];
 
         // Make it a unit vector
-        magnitude = headPose[0] **2 + headPose[1] **2 + headPose[2] **2;
+        var magnitude = Math.sqrt(headPose[0] **2 + headPose[1] **2 + headPose[2] **2);
         headPose = [headPose[0] / magnitude, headPose[1] / magnitude, headPose[2] / magnitude];
 
         // Find the angle it creates and normalize it by dividing by pi/2
-        xAngle = Math.atan(headPose[0]/headPose[2]) / (3.1415 / 2);
-        yAngle = Math.atan(headPose[1]/headPose[2]) / (3.1415 / 2);
+        // aTan can return NaN with negative numbers so convert afterwards
+        if (headPose[0] > 0){
+            var xAngle = Math.sqrt(Math.atan(headPose[0]/headPose[2])) / Math.sqrt(3.1415 / 2);
+        } else {
+            var xAngle = -1*(Math.sqrt(Math.atan((headPose[0]*-1)/headPose[2])) / Math.sqrt(3.1415 / 2));
+        }
+        var yAngle = Math.sqrt(Math.atan(headPose[1]/headPose[2])) / Math.sqrt(3.1415 / 2);
         headPose = [xAngle, yAngle]
         allFeats.concat(headPose);
 
         // Find the head tilt angle
         var tilt = Math.atan((rightCorner[1] - leftCorner[1]) / (rightCorner[0] - leftCorner[0])) / (3.1415 / 2)
-        allFeats.push(tilt)
+        // console.log(tilt)
+        // allFeats.push(tilt)
   
         return allFeats;
 
