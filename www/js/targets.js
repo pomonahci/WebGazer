@@ -29,7 +29,7 @@ class Targets {
      *                if 'error': number of distance errors to calculate at each TargetPoint
      */
     constructor (points, mode, num) {
-        this.points = points;
+        this.points = [...points]; // clone points
         this.numMeasurementsPerPoint = num;
 
         switch(mode) {
@@ -69,37 +69,55 @@ class Targets {
      */
     start() {
         // this.interval = setInterval(()=>(this.moveToPoints(points)), 5000);
+        webgazer.params.showGazeDot = false;
         this.moveToPoints();
     }
 
     end() {
+        webgazer.params.showGazeDot = true;
         this.target.removeChild(this.dot);
         document.body.removeChild(this.target);
     }
     
     /**
+     * Moves target to a series of points
+     * 
      * @param {array} points a "stack" of coordinates
      */
     moveToPoints() {
+        // While there are points remaining, continue to move the target
         if (this.points.length > 0) {
             var dest = this.points.pop();
             this.moveTargetToPoint(dest.x, dest.y);
-        } else {
-            if (this.calibrationMode) {
-                console.log("regressing");
-                webgazer.getRegression()[0].regress();
-            } else {
-                console.log("calculating error");
-                var out = [];
-                this.measurements.forEach((item, index) => {
-                    console.log(item);
-                    for (var i = 0; i < item.xPredArray.length; i++) {
-                        out.push(`${item.x},${item.y},${item.xPredArray[i]},${item.yPredArray[i]}`)
+        }
+        // If no more points remain
+        else {
+            // Pause for 250 ms
+            this.sleep(250).then(()=> {
+                // clear graphics
+                this.end();
+                 // Pause for 250 ms
+                this.sleep(250).then(()=>{
+                    // If in calibration mode, then calculate ridge regression after collecting all data pts
+                    if (this.calibrationMode) {
+                        console.log("regressing");
+                        webgazer.getRegression()[0].regress();
                     }
-                });
-                console.log(out.join('\n'));
-            }
-            this.end();
+                    // If in error measurement mode, spit out all error measurements in a CSV formatted string
+                    else {
+                        console.log("calculating error");
+                        var out = [];
+                        out.push("actualX,actualY,predictedX,predictedY");
+                        this.measurements.forEach((item, index) => {
+                            console.log(item);
+                            for (var i = 0; i < item.xPredArray.length; i++) {
+                                out.push(`${item.x},${item.y},${item.xPredArray[i]},${item.yPredArray[i]}`)
+                            }
+                        });
+                        console.log(out.join('\n'));
+                    }
+                })
+            })
         }
     }
 

@@ -45260,7 +45260,7 @@ function store_points(x, y, k) {
                 var pred = webgazer.util.bound({'x':x/len, 'y':y/len});
 
                 if (store_points_var) {
-                    drawCoordinates('blue',pred.x,pred.y); //draws the previous predictions
+                    // drawCoordinates('blue',pred.x,pred.y); //draws the previous predictions
                     //store the position of the past fifty occuring tracker preditions
                     store_points(pred.x, pred.y, k);
                     k++;
@@ -45270,12 +45270,13 @@ function store_points(x, y, k) {
                 }
                 // GazeDot
                 if (!webgazer.params.showGazeDot) {
-                    webgazer.params.showGazeDot = true;
+                    gazeDot.style.display = 'none';
+                } else {
                     gazeDot.style.display = 'block';
+                    gazeDot.style.transform = 'translate3d(' + pred.x + 'px,' + pred.y + 'px,0)';
                 }
-                gazeDot.style.transform = 'translate3d(' + pred.x + 'px,' + pred.y + 'px,0)';
+                
             } else {
-                webgazer.params.showGazeDot = false;
                 gazeDot.style.display = 'none';
             }
 

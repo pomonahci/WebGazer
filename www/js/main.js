@@ -1,4 +1,4 @@
-var videoLoc = "../test1.webm" // [20200702 xk] TODO: Source needs to be 4:3 resolution. Unsure how to make this adaptive
+var videoLoc = "../test.webm" // [20200702 xk] TODO: Source needs to be 4:3 resolution. Unsure how to make this adaptive
 
 window.onload = function() {
 
@@ -12,6 +12,8 @@ window.onload = function() {
         // .setStaticVideo(videoLoc)
         .begin()  // .then(value => value.showPredictionPoints(true));
         // .showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
+
+    webgazer.params.showGazeDot = true;
 
 
     //Set up the webgazer video feedback.
