@@ -81,21 +81,26 @@
 
         var allFeats = leftGrayArray.concat(rightGrayArray);
 
+        for (var i = 0; i < allFeats.length; i++){
+            allFeats[i] = (allFeats[i])
+        }
+
         // Add headpose stats
         var rightCorner = eyes.right.corner;
         var leftCorner = eyes.left.corner;
 
         // Creates a user specific distance
-        // var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2 + (rightCorner[2] - leftCorner[2]) ** 2);
-        var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2);
-        allFeats.push(distance / 500);
+        var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2 + (rightCorner[2] - leftCorner[2]) ** 2);
+        //allFeats.push(distance ** 2);
+
+        
 
         // Finds an estimate for head location and standardize it
         // TODO: Make this automatically adjust for different window sizes
         var locationX = Math.floor((rightCorner[0] + leftCorner[0]) / 2)
         var locationY = Math.floor((rightCorner[1] + leftCorner[1]) / 2)
-        allFeats.push(locationX / 1920)
-        allFeats.push(locationY / 1080)
+        allFeats.push(locationX)
+        allFeats.push(locationY)
 
         // Finding normal vector to the plane created by eye corners and nose
         var nose = eyes.left.nose;
@@ -110,22 +115,81 @@
         // Find the angle it creates and normalize it by dividing by pi/2
         // aTan can return NaN with negative numbers so convert afterwards
         if (headPose[0] > 0){
-            var xAngle = Math.sqrt(Math.atan(headPose[0]/headPose[2])) / Math.sqrt(3.1415 / 2);
+            var xAngle = (Math.atan(headPose[0]/headPose[2]));
         } else {
-            var xAngle = -1*(Math.sqrt(Math.atan((headPose[0]*-1)/headPose[2])) / Math.sqrt(3.1415 / 2));
+            var xAngle = -1 * (Math.atan((headPose[0]*-1)/headPose[2]));
         }
-        var yAngle = Math.sqrt(Math.atan(headPose[1]/headPose[2])) / Math.sqrt(3.1415 / 2);
+        var yAngle = (Math.atan(headPose[1]/headPose[2]));
         headPose = [xAngle, yAngle]
         allFeats.concat(headPose);
 
+        var distance2 = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2);
+        distance2 = distance2 / Math.cos(xAngle);
+        console.log(distance2)
+        // allFeats.push(distance2)
+
         // Find the head tilt angle
-        var tilt = Math.atan((rightCorner[1] - leftCorner[1]) / (rightCorner[0] - leftCorner[0])) / (3.1415 / 2)
+        var tilt = Math.atan((rightCorner[1] - leftCorner[1]) / (rightCorner[0] - leftCorner[0]))
         // console.log(tilt)
-        // allFeats.push(tilt)
+        allFeats.push(tilt)
   
         return allFeats;
 
     }
+
+
+    /**
+     * Creates a Z-score standardization method for better regression
+     * @param {Array. <Array.<Number>>} X - data to be standardized
+     * @return {Array. <Array.<Number>>} - the standardized data TODO: Fix this
+     */
+    function standardizeInput(X){
+
+        // Deep copy
+        var copyX = Array.from(X);
+        var xt = webgazer.mat.transpose(X);
+        var meanList = [];
+        var sdList = [];
+
+        // Loop through the input variables to standardize
+        for (var i = 0; i < xt.length; i++){
+            var meansd = getMeanSD(xt[i]);
+            mean = meansd[0];
+            sd = meansd[1];
+            for (var j = 0; j < xt[i].length; j++){
+                copyX[j][i] = (xt[i][j] - mean) / sd;
+            }
+            meanList.push(mean);
+            sdList.push(sd);
+        }
+        return [copyX, meanList, sdList];
+    }
+
+    /**
+     * Find the mean and standard deviation of an array
+     * @param {Array.<Number>} A - Array to find mean and sd
+     * @return {Object} - mean and standard deviation
+     */
+    function getMeanSD(A){
+
+        // Calculate mean
+        var sum = 0
+        var numValues = A.length;
+        for (var i = 0; i < numValues; i++){
+            sum += A[i]
+        }
+        var mean = sum / numValues
+
+        // Calculate Standard Deviation
+        sum = 0;
+        for (var i = 0; i < numValues; i++){
+            sum += (A[i] - mean) ** 2;
+        }
+        sd = Math.sqrt(sum / numValues);
+
+        return [mean, sd];
+    }
+
 
     //TODO: still usefull ???
     /**
@@ -179,8 +243,12 @@
         let numPixels = resizeWidth * resizeHeight * 2
         this.coefficientsX = new Array(numPixels).fill(0);
         this.coefficientsY = new Array(numPixels).fill(0);
-        this.muList = new Array(numPixels).fill(0);
+        this.meanList = new Array(numPixels).fill(0);
         this.sdList = new Array(numPixels).fill(0);
+        this.XMean = 0;
+        this.XSd = 1;
+        this.YMean = 0;
+        this.YSd = 1;
         this.hasRegressed = false
 
         // Initialize Kalman filter [20200608 xk] what do we do about parameters?
@@ -227,6 +295,23 @@
         var screenYArray = this.screenYClicksArray.data;
         var eyeFeatures = this.eyeFeaturesClicks.data;
 
+        // Standardize the inputs
+        var standerdizedIn = standardizeInput(eyeFeatures);
+        eyeFeatures = standerdizedIn[0];
+        this.meanList = standerdizedIn[1];
+        this.sdList = standerdizedIn[2];
+
+        // Standardize X and Y outputs
+        var standardizedX = standardizeInput(screenXArray);
+        var standardizedY = standardizeInput(screenYArray);
+        screenXArray = standardizedX[0];
+        screenYArray = standardizedY[0];
+        this.XMean = standardizedX[1][0];
+        this.YMean = standardizedY[1][0];
+        this.XSd = standardizedX[2][0];
+        this.YSd = standardizedY[2][0];
+
+        // Regress
         this.coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
         this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
     } 
@@ -268,6 +353,8 @@
             this.coefficientsX = new Array(numPixels).fill(0);
             this.coefficientsY = new Array(numPixels).fill(0);
             this.hasRegressed = true;
+            this.meanList = new Array(numPixels).fill(0);
+            this.sdList = new Array(numPixels).fill(0);
         }
 
 
@@ -296,17 +383,22 @@
             this.coefficientsX = new Array(numPixels).fill(0);
             this.coefficientsY = new Array(numPixels).fill(0);
             this.hasRegressed = true;
+            this.meanList = new Array(numPixels).fill(0);
+            this.sdList = new Array(numPixels).fill(0);
         }
 
         var eyeFeats = getEyeFeats(eyesObj);
         var predictedX = 0;
         for(var i=0; i< eyeFeats.length; i++){
-            predictedX += eyeFeats[i] * this.coefficientsX[i];
+            predictedX += ((eyeFeats[i] - this.meanList[i]) / this.sdList[i]) * this.coefficientsX[i];
         }
         var predictedY = 0;
         for(var i=0; i< eyeFeats.length; i++){
-            predictedY += eyeFeats[i] * this.coefficientsY[i];
+            predictedY += ((eyeFeats[i] - this.meanList[i]) / this.sdList[i]) * this.coefficientsY[i];
         }
+
+        predictedX = (predictedX * this.XSd) + this.XMean;
+        predictedY = (predictedY * this.YSd) + this.YMean;
         
         predictedX = Math.floor(predictedX);
         predictedY = Math.floor(predictedY);
