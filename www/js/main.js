@@ -13,6 +13,8 @@ window.onload = function() {
         .begin()  // .then(value => value.showPredictionPoints(true));
         // .showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
 
+    webgazer.params.showGazeDot = true;
+
 
     //Set up the webgazer video feedback.
     var setup = function() {

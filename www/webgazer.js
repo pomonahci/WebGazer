@@ -43713,35 +43713,24 @@ function supports_ogg_theora_video() {
         allFeats.push(locationX / 1920)
         allFeats.push(locationY / 1080)
 
-        // Find an estimate for head pose using point between eyes and nose tip
-        // eyeMidPoint = [(rightCorner[0] + leftCorner[0]) / 2, (rightCorner[1] + leftCorner[1]) / 2, (rightCorner[2] + leftCorner[2]) / 2];
-        // nose = eyes.left.nose;
-        // headPose = [nose[0] - eyeMidPoint[0], nose[1] - eyeMidPoint[1], nose[2] - eyeMidPoint[2]];
-
+        // Finding normal vector to the plane created by eye corners and nose
         var nose = eyes.left.nose;
-
         var nl = [leftCorner[0] - nose[0], leftCorner[1] - nose[1], leftCorner[2] - nose[2]];
         var nr = [rightCorner[0] - nose[0], rightCorner[1] - nose[1], rightCorner[2] - nose[2]];
-
-
         var headPose = [(nl[1]*nr[2] - nl[2]*nr[1]), - (nl[0]*nr[2] - nl[2]*nr[0]) , (nl[0]*nr[1] - nl[1]*nr[0])];
-
-
 
         // Make it a unit vector
         var magnitude = Math.sqrt(headPose[0] **2 + headPose[1] **2 + headPose[2] **2);
         headPose = [headPose[0] / magnitude, headPose[1] / magnitude, headPose[2] / magnitude];
-        // console.log(headPose[1])
 
         // Find the angle it creates and normalize it by dividing by pi/2
+        // aTan can return NaN with negative numbers so convert afterwards
         if (headPose[0] > 0){
             var xAngle = Math.sqrt(Math.atan(headPose[0]/headPose[2])) / Math.sqrt(3.1415 / 2);
         } else {
             var xAngle = -1*(Math.sqrt(Math.atan((headPose[0]*-1)/headPose[2])) / Math.sqrt(3.1415 / 2));
         }
-        
         var yAngle = Math.sqrt(Math.atan(headPose[1]/headPose[2])) / Math.sqrt(3.1415 / 2);
-        
         headPose = [xAngle, yAngle]
         allFeats.concat(headPose);
 
@@ -44915,15 +44904,25 @@ function supports_ogg_theora_video() {
  * This is used by the calibration example file
  */
 var store_points_var = false;
-var xPast50 = new Array(50);
-var yPast50 = new Array(50);
+var xPastPoints = new Array(50);
+var yPastPoints = new Array(50);
+var numPastPoints = 50;
+
+/**
+ * Change number of points to be stored, defaults to 50 as above
+ */
+function adjust_num_stored_points(num) {
+  numPastPoints = num;
+  xPastPoints = new Array(num);
+  yPastPoints = new Array(num);
+}
 
 /*
  * Stores the position of the fifty most recent tracker preditions
  */
 function store_points(x, y, k) {
-  xPast50[k] = x;
-  yPast50[k] = y;
+  xPastPoints[k] = x;
+  yPastPoints[k] = y;
 }
 
 /**
@@ -45268,22 +45267,23 @@ function store_points(x, y, k) {
                 var pred = webgazer.util.bound({'x':x/len, 'y':y/len});
 
                 if (store_points_var) {
-                    drawCoordinates('blue',pred.x,pred.y); //draws the previous predictions
+                    // drawCoordinates('blue',pred.x,pred.y); //draws the previous predictions
                     //store the position of the past fifty occuring tracker preditions
                     store_points(pred.x, pred.y, k);
                     k++;
-                    if (k == 50) {
+                    if (k == numPastPoints) {
                         k = 0;
                     }
                 }
                 // GazeDot
                 if (!webgazer.params.showGazeDot) {
-                    webgazer.params.showGazeDot = true;
+                    gazeDot.style.display = 'none';
+                } else {
                     gazeDot.style.display = 'block';
+                    gazeDot.style.transform = 'translate3d(' + pred.x + 'px,' + pred.y + 'px,0)';
                 }
-                gazeDot.style.transform = 'translate3d(' + pred.x + 'px,' + pred.y + 'px,0)';
+                
             } else {
-                webgazer.params.showGazeDot = false;
                 gazeDot.style.display = 'none';
             }
 
@@ -45311,6 +45311,13 @@ function store_points(x, y, k) {
             if( latestEyeFeatures )
                 regs[reg].addData(latestEyeFeatures, [x, y], eventType);
         }
+        if (window.saveDataAcrossSessions) {
+            // stores the next data point into localforage.
+            setGlobalData(); // [20200721 xk] does this need to have an await?
+
+            // // Debug line
+            // console.log('Model size: ' + JSON.stringify(await localforage.getItem(localstorageDataLabel)).length / 1000000 + 'MB');
+        }
     };
 
     /**
@@ -45319,14 +45326,6 @@ function store_points(x, y, k) {
      */
     var clickListener = async function(event) {
         recordScreenPosition(event.clientX, event.clientY, eventTypes[0]); // eventType[0] === 'click'
-
-        if (window.saveDataAcrossSessions) {
-            // Each click stores the next data point into localforage.
-            await setGlobalData();
-
-            // // Debug line
-            // console.log('Model size: ' + JSON.stringify(await localforage.getItem(localstorageDataLabel)).length / 1000000 + 'MB');
-        }
     };
 
     /**
@@ -45858,23 +45857,13 @@ function store_points(x, y, k) {
      *  Records current screen position for current pupil features.
      *  @param {String} x - position on screen in the x axis
      *  @param {String} y - position on screen in the y axis
-     *  @return {webgazer} this
-     */
-    webgazer.recordScreenPosition = function(x, y) {
-        // give this the same weight that a click gets.
-        recordScreenPosition(x, y, eventTypes[0]);
-        return webgazer;
-    };
-
-    /**
-     *  Records current screen position for current pupil features.
-     *  @param {String} x - position on screen in the x axis
-     *  @param {String} y - position on screen in the y axis
      *  @param {String} eventType - "click" or "move", as per eventTypes
      *  @return {webgazer} this
      */
     webgazer.recordScreenPosition = function(x, y, eventType) {
-        // give this the same weight that a click gets.
+        // by default, give this the same weight that a click gets
+        eventType = eventType ? eventType : eventTypes[0];
+
         recordScreenPosition(x, y, eventType);
         return webgazer;
     };
