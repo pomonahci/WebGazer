@@ -43737,7 +43737,7 @@ function supports_ogg_theora_video() {
         // Find the head tilt angle
         var tilt = Math.atan((rightCorner[1] - leftCorner[1]) / (rightCorner[0] - leftCorner[0])) / (3.1415 / 2)
         // console.log(tilt)
-        // allFeats.push(tilt)
+        allFeats.push(tilt)
   
         return allFeats;
 
