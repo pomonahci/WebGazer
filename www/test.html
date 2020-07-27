@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<!--
+This is an example HTML that shows how WebGazer can be used on a website.
+This file provides the additional features:
+  * An integrated, intuitive and sleek action bar with an informative "help" module accessible at all times
+  * Structured 9-point calibration system
+  * Accuracy measure of predictions based on calibration process
+  * Video feedback regarding face positioning
+  * Improved eye predictions visible to the user
+Instructions on use can be found in the README repository.
+-->
+<html>
+    <head>
+        <META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+        <TITLE>WebGazer Demo</TITLE>
+        <link rel="stylesheet" type="text/css" href="./css/style.css">
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.min.css">
+        <!-- <script async type="text/javascript" src="./webgazer.js"></script> -->
+        <style>
+          button {
+            border-radius: 4px;
+          }
+          #myCanvas {
+              float: right;
+          }
+        </style>
+    </head>
+    <body LANG="en-US" LINK="#0000ff" DIR="LTR">
+        <video id="vid" src="./seq1.mp4" type="video/mp4"></video>
+
+        <canvas id="myCanvas" width="320" height="240"></canvas>
+        <script type="text/javascript">
+            var width = 320;
+            var height = 240;
+            
+            var video = document.getElementById("vid");
+            video.autoplay = true;
+            // video.controls = true;
+            video.loop = true;
+            video.width = width;
+
+
+            var canvas = document.getElementById("myCanvas");
+
+            var aspectRatio = width / height;
+
+            var setWidth, setHeight;
+
+            async function loop() {
+                // If video is too long
+                if (video.videoWidth / aspectRatio > video.videoHeight) {
+                    setWidth = video.videoHeight * aspectRatio;
+                    setHeight = video.videoHeight;
+                }
+                // If video is too tall
+                else if (video.videoHeight * aspectRatio > video.videoWidth) {
+                    setWidth = video.videoWidth;
+                    setHeight = video.videoWidth / aspectRatio;
+                } else {
+                    setWidth = video.videoWidth;
+                    setHeight = video.videoHeight;
+                }
+
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(video, (video.videoWidth > setWidth ? (video.videoWidth - setWidth)/2 : 0),
+                                    (video.videoHeight > setHeight ? (video.videoHeight - setHeight)/2 : 0),
+                                    setWidth, setHeight,
+                                    0, 0, 320, 240);
+                requestAnimationFrame(loop);
+            }
+
+            loop();
+
+
+        </script>
+
+    </body>
+</html>
