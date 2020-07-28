@@ -3,7 +3,7 @@
  * @param {*} x proportion representing how far left across the window the point is
  * @param {*} y proportion representing how far down the window the point is
  */
-const TargetPoint = function(xProp, yProp) {
+function TargetPoint(xProp, yProp) {
     this.x = xProp * window.innerWidth;
     this.y = yProp * window.innerHeight;
 }
@@ -228,7 +228,7 @@ class Targets {
      * Records 5 calibration points
      * @param {*} count start this at 0, counts up to 5
      */
-    recordCalibrations = async function(count) {
+    async recordCalibrations(count) {
         if (count < this.numMeasurementsPerPoint) {
             webgazer.recordScreenPosition(this.destX, this.destY);
             count++;
@@ -240,7 +240,7 @@ class Targets {
      * 
      * @param {*} count 
      */
-    recordErrors = async function(count, x, y) {
+    async recordErrors(count, x, y) {
         adjust_num_stored_points(this.numMeasurementsPerPoint);
         store_points_variable();
         this.sleep(1500).then(() => {
@@ -278,7 +278,7 @@ class Targets {
      * simple implementation of sleep
      * @param {*} milliseconds 
      */
-    sleep = (milliseconds) => {
+    sleep(milliseconds) {
         return new Promise(resolve => setTimeout(resolve, milliseconds))
     }
 }

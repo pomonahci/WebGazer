@@ -43702,8 +43702,7 @@ function supports_ogg_theora_video() {
         var leftCorner = eyes.left.corner;
 
         // Creates a user specific distance
-        // var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2 + (rightCorner[2] - leftCorner[2]) ** 2);
-        var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2);
+        var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2 + (rightCorner[2] - leftCorner[2]) ** 2);
         allFeats.push(distance / 500);
 
         // Finds an estimate for head location and standardize it
@@ -43740,6 +43739,9 @@ function supports_ogg_theora_video() {
         allFeats.push(tilt)
   
         return allFeats;
+    }
+
+    function standardize(){
 
     }
 
@@ -44944,6 +44946,9 @@ function store_points(x, y, k) {
 
     //PRIVATE VARIABLES
 
+    var imageElement = null;
+    webgazer.params.imageElementId = "webgazerImageFrame";
+
     //video elements
     var videoStream = null;
     var videoElement = null;
@@ -44957,7 +44962,7 @@ function store_points(x, y, k) {
     webgazer.params.faceFeedbackBoxId = 'webgazerFaceFeedbackBox';
     webgazer.params.gazeDotId = 'webgazerGazeDot'
 
-    
+    var inputElement = null;
     
     webgazer.params.videoViewerWidth = 320;
     webgazer.params.videoViewerHeight = 240;
@@ -45174,7 +45179,8 @@ function store_points(x, y, k) {
         }
 
         var ctx = canvas.getContext('2d');
-        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+        // ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(inputElement, 0, 0, canvas.width, canvas.height);
     }
 
     /**
@@ -45442,6 +45448,9 @@ function store_points(x, y, k) {
         videoElement.style.width = webgazer.params.videoViewerWidth + 'px';
         videoElement.style.height = webgazer.params.videoViewerHeight + 'px';
         // videoElement.style.zIndex="-1";
+
+        // Set input to video element
+        inputElement = videoElement;
         
         // Canvas for drawing video to pass to clm tracker
         videoElementCanvas = document.createElement('canvas');
@@ -45519,6 +45528,39 @@ function store_points(x, y, k) {
         clockStart = performance.now();
 
         await loop();
+    }
+
+    function initImageElement(src) {
+        
+        if (imageElement) {
+            document.body.removeChild(imageElement);
+        }
+
+        imageElement = document.createElement("img");
+
+        // filename
+        imageElement.src = src;
+
+        imageElement.id = webgazer.params.imageElementId;
+        imageElement.style.position = 'fixed';
+        imageElement.style.top = "0px";
+        imageElement.style.left = "0px";
+        // We set these to stop the video appearing too large when it is added for the very first time
+        imageElement.style.width = webgazer.params.videoViewerWidth + 'px';
+        imageElement.style.height = webgazer.params.videoViewerHeight + 'px';
+        imageElement.style.zIndex = "-1";
+        // Mirror video feed
+        if (webgazer.params.mirrorVideo) {
+            imageElement.style.setProperty("-moz-transform", "scale(-1, 1)");
+            imageElement.style.setProperty("-webkit-transform", "scale(-1, 1)");
+            imageElement.style.setProperty("-o-transform", "scale(-1, 1)");
+            imageElement.style.setProperty("transform", "scale(-1, 1)");
+            imageElement.style.setProperty("filter", "FlipH");
+        }
+        document.body.appendChild(imageElement);
+
+        // Set image element to be the input
+        inputElement = imageElement;
     }
 
     /**
@@ -45968,6 +46010,62 @@ function store_points(x, y, k) {
      */
     webgazer.setVideoElementCanvas = function(canvas) {
         videoElementCanvas = canvas;
+    }
+
+    webgazer.readCalibrationCSV = function(file) {
+        return (new Promise((resolve, reject) => {
+            var reader = new FileReader();
+            reader.onload = function(evt) {
+                console.log(evt);
+                console.log(evt.target.result);
+                resolve(evt.target.result);
+            }
+            reader.onerror = function(evt) {
+                reject(evt);
+            };
+            reader.readAsText(file);
+        }));
+    }
+
+    /**
+     * 
+     * @param {*} csv 
+     */
+    webgazer.setCalibration = async function(input) {
+
+        const file = input.files[0];
+
+        var text = await webgazer.readCalibrationCSV(file);
+        // split the contents by new line
+        var lines = text.split(/\r?\n/);
+
+        // Hide video feed
+        videoElement.style.display = "none";
+
+        // print all lines
+        for (const line of lines) {
+            // "filename,actualX,actualY"
+            var tokens = line.split(',');
+            await webgazer.addCalibrationPoint(tokens[0], tokens[1], tokens[2]);
+        }
+
+        videoElement.style.display = "block";
+    }
+
+    webgazer.addCalibrationPoint = async function(src, actualX, actualY) {
+
+        // Creates image element on document
+        initImageElement(src);
+
+        inputElement = imageElement;
+
+        // pause for 100 ms
+        await new Promise(r => setTimeout(r, 100));
+
+        recordScreenPosition(actualX, actualY, 'click');
+
+        // pause for 100 ms
+        await new Promise(r => setTimeout(r, 100));
     }
 
     /**
