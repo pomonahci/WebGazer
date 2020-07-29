@@ -43702,8 +43702,7 @@ function supports_ogg_theora_video() {
         var leftCorner = eyes.left.corner;
 
         // Creates a user specific distance
-        // var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2 + (rightCorner[2] - leftCorner[2]) ** 2);
-        var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2);
+        var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2 + (rightCorner[2] - leftCorner[2]) ** 2);
         allFeats.push(distance / 500);
 
         // Finds an estimate for head location and standardize it
@@ -43740,6 +43739,9 @@ function supports_ogg_theora_video() {
         allFeats.push(tilt)
   
         return allFeats;
+    }
+
+    function standardize(){
 
     }
 
@@ -45321,52 +45323,6 @@ function store_points(x, y, k) {
     };
 
     /**
-     * Records click data and passes it to the regression model
-     * @param {Event} event - The listened event
-     */
-    var clickListener = async function(event) {
-        recordScreenPosition(event.clientX, event.clientY, eventTypes[0]); // eventType[0] === 'click'
-    };
-
-    /**
-     * Records mouse movement data and passes it to the regression model
-     * @param {Event} event - The listened event
-     */
-    var moveListener = function(event) {
-        if (paused) {
-            return;
-        }
-
-        var now = performance.now();
-        if (now < moveClock + webgazer.params.moveTickSize) {
-            return;
-        } else {
-            moveClock = now;
-        }
-        recordScreenPosition(event.clientX, event.clientY, eventTypes[1]); //eventType[1] === 'move'
-    };
-
-    /**
-     * Add event listeners for mouse click and move.
-     */
-    var addMouseEventListeners = function() {
-        //third argument set to true so that we get event on 'capture' instead of 'bubbling'
-        //this prevents a client using event.stopPropagation() preventing our access to the click
-        document.addEventListener('click', clickListener, true);
-        document.addEventListener('mousemove', moveListener, true);
-    };
-
-    /**
-     * Remove event listeners for mouse click and move.
-     */
-    var removeMouseEventListeners = function() {
-        // must set third argument to same value used in addMouseEventListeners
-        // for this to work.
-        document.removeEventListener('click', clickListener, true);
-        document.removeEventListener('mousemove', moveListener, true);
-    };
-
-    /**
      * Loads the global data and passes it to the regression model
      */
     async function loadGlobalData() {
@@ -45511,8 +45467,6 @@ function store_points(x, y, k) {
             e.target.removeEventListener(e.type, setupPreviewVideo);
         };
         videoElement.addEventListener('timeupdate', setupPreviewVideo);
-
-        addMouseEventListeners();
 
         //BEGIN CALLBACK LOOP
         paused = false;
@@ -45833,24 +45787,6 @@ function store_points(x, y, k) {
         faceFeedbackBox.style.left = tlwh[1] + 'px';
         faceFeedbackBox.style.width = tlwh[2] + 'px';
         faceFeedbackBox.style.height = tlwh[3] + 'px';
-    };
-
-    /**
-     *  Add the mouse click and move listeners that add training data.
-     *  @return {webgazer} this
-     */
-    webgazer.addMouseEventListeners = function() {
-        addMouseEventListeners();
-        return webgazer;
-    };
-
-    /**
-     *  Remove the mouse click and move listeners that add training data.
-     *  @return {webgazer} this
-     */
-    webgazer.removeMouseEventListeners = function() {
-        removeMouseEventListeners();
-        return webgazer;
     };
 
     /**
