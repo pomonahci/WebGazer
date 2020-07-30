@@ -45001,10 +45001,6 @@ function store_points(x, y, k) {
     //Describes the source of data so that regression systems may ignore or handle differently the various generating events
     var eventTypes = ['click', 'move'];
 
-    //movelistener timeout clock parameters
-    var moveClock = performance.now();
-    webgazer.params.moveTickSize = 50; //milliseconds
-
     //currently used tracker and regression models, defaults to clmtrackr and linear regression
     var curTracker = new webgazer.tracker.TFFaceMesh();
     var regs = [new webgazer.reg.RidgeReg()];
@@ -45179,7 +45175,6 @@ function store_points(x, y, k) {
         }
 
         var ctx = canvas.getContext('2d');
-        // ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
         ctx.drawImage(inputElement, 0, 0, canvas.width, canvas.height);
     }
 
@@ -45314,8 +45309,10 @@ function store_points(x, y, k) {
             return null;
         }
         for (var reg in regs) {
-            if( latestEyeFeatures )
+            if( latestEyeFeatures ) {
+                console.log(latestEyeFeatures);
                 regs[reg].addData(latestEyeFeatures, [x, y], eventType);
+            }
         }
         if (window.saveDataAcrossSessions) {
             // stores the next data point into localforage.
@@ -45324,52 +45321,6 @@ function store_points(x, y, k) {
             // // Debug line
             // console.log('Model size: ' + JSON.stringify(await localforage.getItem(localstorageDataLabel)).length / 1000000 + 'MB');
         }
-    };
-
-    /**
-     * Records click data and passes it to the regression model
-     * @param {Event} event - The listened event
-     */
-    var clickListener = async function(event) {
-        recordScreenPosition(event.clientX, event.clientY, eventTypes[0]); // eventType[0] === 'click'
-    };
-
-    /**
-     * Records mouse movement data and passes it to the regression model
-     * @param {Event} event - The listened event
-     */
-    var moveListener = function(event) {
-        if (paused) {
-            return;
-        }
-
-        var now = performance.now();
-        if (now < moveClock + webgazer.params.moveTickSize) {
-            return;
-        } else {
-            moveClock = now;
-        }
-        recordScreenPosition(event.clientX, event.clientY, eventTypes[1]); //eventType[1] === 'move'
-    };
-
-    /**
-     * Add event listeners for mouse click and move.
-     */
-    var addMouseEventListeners = function() {
-        //third argument set to true so that we get event on 'capture' instead of 'bubbling'
-        //this prevents a client using event.stopPropagation() preventing our access to the click
-        document.addEventListener('click', clickListener, true);
-        document.addEventListener('mousemove', moveListener, true);
-    };
-
-    /**
-     * Remove event listeners for mouse click and move.
-     */
-    var removeMouseEventListeners = function() {
-        // must set third argument to same value used in addMouseEventListeners
-        // for this to work.
-        document.removeEventListener('click', clickListener, true);
-        document.removeEventListener('mousemove', moveListener, true);
     };
 
     /**
@@ -45521,8 +45472,6 @@ function store_points(x, y, k) {
         };
         videoElement.addEventListener('timeupdate', setupPreviewVideo);
 
-        addMouseEventListeners();
-
         //BEGIN CALLBACK LOOP
         paused = false;
         clockStart = performance.now();
@@ -45546,7 +45495,7 @@ function store_points(x, y, k) {
         imageElement.style.top = "0px";
         imageElement.style.left = "0px";
         // We set these to stop the video appearing too large when it is added for the very first time
-        imageElement.style.width = webgazer.params.videoViewerWidth + 'px';
+        // imageElement.style.width = webgazer.params.videoViewerWidth + 'px';
         imageElement.style.height = webgazer.params.videoViewerHeight + 'px';
         imageElement.style.zIndex = "-1";
         // Mirror video feed
@@ -45878,24 +45827,6 @@ function store_points(x, y, k) {
     };
 
     /**
-     *  Add the mouse click and move listeners that add training data.
-     *  @return {webgazer} this
-     */
-    webgazer.addMouseEventListeners = function() {
-        addMouseEventListeners();
-        return webgazer;
-    };
-
-    /**
-     *  Remove the mouse click and move listeners that add training data.
-     *  @return {webgazer} this
-     */
-    webgazer.removeMouseEventListeners = function() {
-        removeMouseEventListeners();
-        return webgazer;
-    };
-
-    /**
      *  Records current screen position for current pupil features.
      *  @param {String} x - position on screen in the x axis
      *  @param {String} y - position on screen in the y axis
@@ -46050,22 +45981,23 @@ function store_points(x, y, k) {
         }
 
         videoElement.style.display = "block";
+        inputElement = videoElement;
     }
 
-    webgazer.addCalibrationPoint = async function(src, actualX, actualY) {
+    webgazer.addCalibrationPoint = async function(imgSrc, actualX, actualY) {
 
         // Creates image element on document
-        initImageElement(src);
+        initImageElement(imgSrc);
 
         inputElement = imageElement;
 
-        // pause for 100 ms
-        await new Promise(r => setTimeout(r, 100));
+        // pause for 200 ms
+        await new Promise(r => setTimeout(r, 200));
 
         recordScreenPosition(actualX, actualY, 'click');
 
-        // pause for 100 ms
-        await new Promise(r => setTimeout(r, 100));
+        // pause for 50 ms
+        await new Promise(r => setTimeout(r, 50));
     }
 
     /**
