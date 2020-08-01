@@ -550,16 +550,9 @@
         await loop();
     }
 
-    function initImageElement(src) {
-        
-        if (imageElement) {
-            document.body.removeChild(imageElement);
-        }
+    function initImageElement() {
 
         imageElement = document.createElement("img");
-
-        // filename
-        imageElement.src = src;
 
         imageElement.id = webgazer.params.imageElementId;
         imageElement.style.position = 'fixed';
@@ -1014,61 +1007,125 @@
         videoElementCanvas = canvas;
     }
 
-    webgazer.readCalibrationCSV = function(file) {
-        return (new Promise((resolve, reject) => {
-            var reader = new FileReader();
-            reader.onload = function(evt) {
-                console.log(evt);
-                console.log(evt.target.result);
-                resolve(evt.target.result);
-            }
-            reader.onerror = function(evt) {
-                reject(evt);
-            };
-            reader.readAsText(file);
-        }));
+    /**
+     * @param {*} csv url/location of csv file
+     * @returns Promise containing text of file body
+     */
+    async function readTextFile(csv) {
+        // Gets the response and returns the text
+        var response = await fetch(csv);
+        if (response.status !== 200)
+            throw response.status;
+        return response.text();
     }
 
     /**
-     * 
-     * @param {*} csv 
+     * @param {*} csv url/location of csv file
      */
-    webgazer.setCalibration = async function(input) {
+    webgazer.setCalibrationFrames = async function(csv) {
+        var text = await readTextFile(csv);
 
-        const file = input.files[0];
-
-        var text = await webgazer.readCalibrationCSV(file);
         // split the contents by new line
         var lines = text.split(/\r?\n/);
 
         // Hide video feed
         videoElement.style.display = "none";
 
-        // print all lines
-        for (const line of lines) {
-            // "filename,actualX,actualY"
-            var tokens = line.split(',');
-            await webgazer.addCalibrationPoint(tokens[0], tokens[1], tokens[2]);
-        }
-
-        videoElement.style.display = "block";
-        inputElement = videoElement;
-    }
-
-    webgazer.addCalibrationPoint = async function(imgSrc, actualX, actualY) {
-
-        // Creates image element on document
-        initImageElement(imgSrc);
-
+        // Creates image element on document, and replaces video feed with images
+        initImageElement();
         inputElement = imageElement;
 
-        // pause for 200 ms
-        await new Promise(r => setTimeout(r, 200));
+        // print all lines
+        for (const line of lines) {
+            // [filename, actualX, actualY]
+            var tokens = line.split(',');
+            
+            // Set image source of image element to the inputted image
+            imageElement.src = tokens[0];
 
-        recordScreenPosition(actualX, actualY, 'click');
+            // pause for 500 ms
+            await new Promise(r => setTimeout(r, 500));
+            recordScreenPosition(tokens[1], tokens[2], 'click');
+            
+            // pause for 100 ms
+            await new Promise(r => setTimeout(r, 100));
+        }
 
-        // pause for 50 ms
-        await new Promise(r => setTimeout(r, 50));
+        // Removes image from page, sets input back to video
+        document.body.removeChild(imageElement);
+        videoElement.style.display = "block";
+        inputElement = videoElement;
+
+        webgazer.regress();
+    }
+
+    /**
+     * @param {*} csv url/location of csv file
+     * @param {number} numTestPoints how many points we want to record (max depends on computer specs)
+     */
+    webgazer.setErrorTestFrames = async function(csv, numTestPoints) {
+        var text = await readTextFile(csv);
+
+        // split the contents by new line
+        var lines = text.split(/\r?\n/);
+
+        // Hide video feed
+        videoElement.style.display = "none";
+
+        // Creates image element on document, and replaces video feed with images
+        initImageElement();
+        inputElement = imageElement;
+
+        // Prepare to collect error points
+        var measurements = [];
+
+        // For each line
+        for (const line of lines) {
+            // [filename, actualX, actualY]
+            var tokens = line.split(',');
+            
+            // Set image source of image element to the inputted image
+            imageElement.src = tokens[0];
+
+            // Create new arrays of the correct size
+            adjust_num_stored_points(numTestPoints) // method declared in src/precision.js
+
+            // pause for 1000 ms to allow for the predictions to catch up
+            await new Promise(r => setTimeout(r, 1000));
+
+            // Collect points for 1500 ms
+            store_points_var = true; // store_points_var declared in src/precision.js
+            await new Promise(r => setTimeout(r, 1500));
+            
+            // Store actual (x,y) with an array of corresponding (x,y) predictions.
+            measurements.push({
+                x: tokens[1],
+                y: tokens[2],
+                xPredArray: xPastPoints,
+                yPredArray: xPastPoints
+            })
+            store_points_var = false;
+        }
+            
+        // pause for 100 ms
+        await new Promise(r => setTimeout(r, 100));
+
+        // Removes image from page, sets input back to video
+        document.body.removeChild(imageElement);
+        videoElement.style.display = "block";
+        inputElement = videoElement;
+
+        // Prints a csv-formatted string into the console
+        console.log("calculating error");
+        var out = [];
+        out.push("actualX,actualY,predictedX,predictedY");
+        measurements.forEach((item, index) => {
+            console.log(item);
+            for (var i = 0; i < item.xPredArray.length; i++) {
+                out.push(`${item.x},${item.y},${item.xPredArray[i]},${item.yPredArray[i]}`)
+            }
+        });
+        console.log(out.join('\n'));
     }
 
     /**
