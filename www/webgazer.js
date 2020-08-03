@@ -45216,7 +45216,7 @@ function store_points(x, y, k) {
     /**
      * Runs every available animation frame if webgazer is not paused
      */
-    var smoothingVals = new webgazer.util.DataWindow(4);
+    var smoothingVals = new webgazer.util.DataWindow(1);
     var k = 0;
 
     async function loop() {

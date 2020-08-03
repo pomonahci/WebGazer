@@ -62,22 +62,23 @@ Instructions on use can be found in the README repository.
             </div>
           </nav>
 
-          <video id="vid" src="./seq1.mov" type="video/mov"></video>
+          <video id="vid" src="./test.mov" type="video/mov"></video>
           
           <script type="text/javascript">
             // var vidFeed = document.getElementById("webgazerVideoFeed");
             // vidFeed.style.display = "none";
 
-            var width = window.innerWidth * 0.75;
-            var height = window.innerHeight * 0.75;
+            // var width = window.innerWidth * 0.90;
+            // var height = window.innerHeight;
             
             var video = document.getElementById("vid");
-            video.autoplay = true;
-            // video.controls = true;
+            // video.autoplay = true;
+            video.controls = true;
             video.loop = true;
-            video.width = width;
+            video.width = window.innerWidth;
             video.style.position = "absolute";
-            video.style.left = "12.5%";
+            // video.style.left = "5%";
+            video.style.zIndex = "10";
 
 
         </script>

@@ -1,22 +1,29 @@
 
-var elapsedTime = 0;
+var elapsedTime = Date.now();
 
 var showGazeDot = true;
 
 $(document).keydown(function(e){
-    if (e.keyCode == 32) {
+    if (e.keyCode == 32) { // ' '
         $("#spacebar").show();
-        var save_url = "http://localhost:8000/" + elapsedTime + "ms/SPACEBAR_PRESSED";
-        var temp_image = new Image();
-        temp_image.src = save_url;
+        // var save_url = "http://localhost:8000/" + elapsedTime + "ms/SPACEBAR_PRESSED";
+        // var temp_image = new Image();
+        // temp_image.src = save_url;
        return false;
     }
-    if (e.keyCode == 191) {
+    if (e.keyCode == 191) {  // '/'
         showGazeDot ? $("#webgazerGazeDot").hide() : $("#webgazerGazeDot").show();
         showGazeDot = !showGazeDot;
     }
-    if (e.keyCode == 82) {
+    if (e.keyCode == 82) { // 'r'
         elapsedTime = 0;
+    }
+    if (e.keyCode == 84) { // 't'
+        var ts = new Targets(calibrationPoints, 'calibration', 5);
+        ts.start();
+    }
+    if (e.keyCode == 67) { // 'c'
+        webgazer.clearData();
     }
 });
 
@@ -30,14 +37,16 @@ window.onload = function() {
 
     $("#spacebar").hide();
 
+    // var fpsArray = new webgazer.util.DataWindow(10);
+
     //start the webgazer tracker
     webgazer.setRegression('ridge') /* currently must set regression and tracker */
         .setTracker('TFFacemesh')
         .setGazeListener((data, clock) => {
-          var save_url = "http://localhost:8000/" + elapsedTime + "ms/" + (data ? data.x : null) + "," + (data ? data.y : null);
-          var temp_image = new Image();
-          temp_image.src = save_url;
-          document.getElementById("prediction").innerHTML = (data ? data.x : null) + "," + (data ? data.y : null);
+        //   var save_url = "http://localhost:8000/" + elapsedTime + "ms/" + (data ? data.x : null) + "," + (data ? data.y : null);
+        //   var temp_image = new Image();
+        //   temp_image.src = save_url;
+        //   document.getElementById("prediction").innerHTML = (data ? data.x : null) + "," + (data ? data.y : null);
         })
         .begin()
         .showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
