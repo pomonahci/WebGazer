@@ -18,8 +18,8 @@ function stop_storing_points_variable(){
  * Returns the stored tracker prediction points
  */
 function get_points() {
-  var past50 = new Array(2);
-  past50[0] = xPast50;
-  past50[1] = yPast50;
-  return past50;
+  var pastPoints = new Array(2);
+  pastPoints[0] = xPastPoints;
+  pastPoints[1] = yPastPoints;
+  return pastPoints;
 }

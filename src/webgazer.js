@@ -29,6 +29,8 @@
     webgazer.params.faceOverlayId = 'webgazerFaceOverlay';
     webgazer.params.faceFeedbackBoxId = 'webgazerFaceFeedbackBox';
     webgazer.params.gazeDotId = 'webgazerGazeDot'
+
+    
     
     webgazer.params.videoViewerWidth = 320;
     webgazer.params.videoViewerHeight = 240;
@@ -36,6 +38,7 @@
     webgazer.params.faceFeedbackBoxRatio = 0.66;
 
     // View options
+    webgazer.params.useVideoFile = false;
     webgazer.params.showVideo = true;
     webgazer.params.mirrorVideo = true;
     webgazer.params.showFaceOverlay = true;
@@ -263,6 +266,7 @@
         }
         for (var reg in regs) {
             predictions.push(regs[reg].predict(latestEyeFeatures));
+
         }
         if (regModelIndex !== undefined) {
             return predictions[regModelIndex] === null ? null : {
@@ -288,7 +292,6 @@
 
     async function loop() {
         if (!paused) {
-
             // [20200617 XK] TODO: there is currently lag between the camera input and the face overlay. This behavior
             // is not seen in the facemesh demo. probably need to optimize async implementation. I think the issue lies
             // in the implementation of getPrediction().
@@ -342,22 +345,23 @@
                 var pred = webgazer.util.bound({'x':x/len, 'y':y/len});
 
                 if (store_points_var) {
-                    drawCoordinates('blue',pred.x,pred.y); //draws the previous predictions
+                    // drawCoordinates('blue',pred.x,pred.y); //draws the previous predictions
                     //store the position of the past fifty occuring tracker preditions
                     store_points(pred.x, pred.y, k);
                     k++;
-                    if (k == 50) {
+                    if (k == numPastPoints) {
                         k = 0;
                     }
                 }
                 // GazeDot
                 if (!webgazer.params.showGazeDot) {
-                    webgazer.params.showGazeDot = true;
+                    gazeDot.style.display = 'none';
+                } else {
                     gazeDot.style.display = 'block';
+                    gazeDot.style.transform = 'translate3d(' + pred.x + 'px,' + pred.y + 'px,0)';
                 }
-                gazeDot.style.transform = 'translate3d(' + pred.x + 'px,' + pred.y + 'px,0)';
+                
             } else {
-                webgazer.params.showGazeDot = false;
                 gazeDot.style.display = 'none';
             }
 
@@ -385,60 +389,13 @@
             if( latestEyeFeatures )
                 regs[reg].addData(latestEyeFeatures, [x, y], eventType);
         }
-    };
-
-    /**
-     * Records click data and passes it to the regression model
-     * @param {Event} event - The listened event
-     */
-    var clickListener = async function(event) {
-        recordScreenPosition(event.clientX, event.clientY, eventTypes[0]); // eventType[0] === 'click'
-
         if (window.saveDataAcrossSessions) {
-            // Each click stores the next data point into localforage.
-            await setGlobalData();
+            // stores the next data point into localforage.
+            setGlobalData(); // [20200721 xk] does this need to have an await?
 
             // // Debug line
             // console.log('Model size: ' + JSON.stringify(await localforage.getItem(localstorageDataLabel)).length / 1000000 + 'MB');
         }
-    };
-
-    /**
-     * Records mouse movement data and passes it to the regression model
-     * @param {Event} event - The listened event
-     */
-    var moveListener = function(event) {
-        if (paused) {
-            return;
-        }
-
-        var now = performance.now();
-        if (now < moveClock + webgazer.params.moveTickSize) {
-            return;
-        } else {
-            moveClock = now;
-        }
-        recordScreenPosition(event.clientX, event.clientY, eventTypes[1]); //eventType[1] === 'move'
-    };
-
-    /**
-     * Add event listeners for mouse click and move.
-     */
-    var addMouseEventListeners = function() {
-        //third argument set to true so that we get event on 'capture' instead of 'bubbling'
-        //this prevents a client using event.stopPropagation() preventing our access to the click
-        document.addEventListener('click', clickListener, true);
-        document.addEventListener('mousemove', moveListener, true);
-    };
-
-    /**
-     * Remove event listeners for mouse click and move.
-     */
-    var removeMouseEventListeners = function() {
-        // must set third argument to same value used in addMouseEventListeners
-        // for this to work.
-        document.removeEventListener('click', clickListener, true);
-        document.removeEventListener('mousemove', moveListener, true);
     };
 
     /**
@@ -503,7 +460,11 @@
 
         videoElement = document.createElement('video');
         videoElement.id = webgazer.params.videoElementId;
-        videoElement.srcObject = videoStream; 
+        if (webgazer.params.useVideoFile) {
+            videoElement.src = videoStream;
+        } else {
+            videoElement.srcObject = videoStream;
+        }
         videoElement.autoplay = true;
         videoElement.style.display = webgazer.params.showVideo ? 'block' : 'none';
         videoElement.style.position = 'fixed';
@@ -582,8 +543,6 @@
             e.target.removeEventListener(e.type, setupPreviewVideo);
         };
         videoElement.addEventListener('timeupdate', setupPreviewVideo);
-
-        addMouseEventListeners();
 
         //BEGIN CALLBACK LOOP
         paused = false;
@@ -672,6 +631,9 @@
         return webgazer;
     };
 
+    webgazer.regress = function(){
+        regs[0].regress();
+    }
 
     /**
      * Checks if webgazer has finished initializing after calling begin()
@@ -875,8 +837,9 @@
      *  @return {webgazer} this
      */
     webgazer.setStaticVideo = function(videoLoc) {
-       debugVideoLoc = videoLoc;
-       return webgazer;
+        debugVideoLoc = videoLoc;
+        webgazer.params.useVideoFile = true;
+        return webgazer;
     };
 
     /**
@@ -906,36 +869,6 @@
     };
 
     /**
-     *  Add the mouse click and move listeners that add training data.
-     *  @return {webgazer} this
-     */
-    webgazer.addMouseEventListeners = function() {
-        addMouseEventListeners();
-        return webgazer;
-    };
-
-    /**
-     *  Remove the mouse click and move listeners that add training data.
-     *  @return {webgazer} this
-     */
-    webgazer.removeMouseEventListeners = function() {
-        removeMouseEventListeners();
-        return webgazer;
-    };
-
-    /**
-     *  Records current screen position for current pupil features.
-     *  @param {String} x - position on screen in the x axis
-     *  @param {String} y - position on screen in the y axis
-     *  @return {webgazer} this
-     */
-    webgazer.recordScreenPosition = function(x, y) {
-        // give this the same weight that a click gets.
-        recordScreenPosition(x, y, eventTypes[0]);
-        return webgazer;
-    };
-
-    /**
      *  Records current screen position for current pupil features.
      *  @param {String} x - position on screen in the x axis
      *  @param {String} y - position on screen in the y axis
@@ -943,7 +876,9 @@
      *  @return {webgazer} this
      */
     webgazer.recordScreenPosition = function(x, y, eventType) {
-        // give this the same weight that a click gets.
+        // by default, give this the same weight that a click gets
+        eventType = eventType ? eventType : eventTypes[0];
+
         recordScreenPosition(x, y, eventType);
         return webgazer;
     };

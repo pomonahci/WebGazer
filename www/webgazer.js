@@ -42854,6 +42854,11 @@ function supports_ogg_theora_video() {
         var rightOriginY = Math.round(Math.min(positions[414][1], positions[257][1], positions[467][1]));
         var rightWidth = Math.round(Math.max(positions[467][0], positions[359][0], positions[255][0]) - rightOriginX);
         var rightHeight = Math.round(Math.max(positions[341][1], positions[253][1], positions[255][1]) - rightOriginY);
+        
+        // Head pose testing
+        var leftEyeCorner = positions[33];
+        var rightEyeCorner = positions[263];
+        var noseTip = positions[1];
 
         if (leftWidth === 0 || rightWidth === 0){
           console.log('an eye patch had zero width');
@@ -42874,7 +42879,9 @@ function supports_ogg_theora_video() {
             imagex: leftOriginX,
             imagey: leftOriginY,
             width: leftWidth,
-            height: leftHeight
+            height: leftHeight,
+            corner: leftEyeCorner,
+            nose: noseTip
         };
 
         var rightImageData = imageCanvas.getContext('2d').getImageData(rightOriginX, rightOriginY, rightWidth, rightHeight);
@@ -42883,7 +42890,9 @@ function supports_ogg_theora_video() {
             imagex: rightOriginX,
             imagey: rightOriginY,
             width: rightWidth,
-            height: rightHeight
+            height: rightHeight,
+            corner: rightEyeCorner,
+            nose: noseTip
         };
 
         this.predictionReady = true;
@@ -43614,9 +43623,9 @@ function supports_ogg_theora_video() {
     webgazer.util = webgazer.util || {};
     webgazer.params = webgazer.params || {};
 
-    var ridgeParameter = Math.pow(10,-5);
-    var resizeWidth = 10;
-    var resizeHeight = 6;
+    var ridgeParameter = Math.pow(10, -5);
+    var resizeWidth = 40;
+    var resizeHeight = 20;
     var dataWindow = 700;
     var trailDataWindow = 10;
 
@@ -43686,7 +43695,54 @@ function supports_ogg_theora_video() {
         var leftGrayArray = Array.prototype.slice.call(histLeft);
         var rightGrayArray = Array.prototype.slice.call(histRight);
 
-        return leftGrayArray.concat(rightGrayArray);
+        var allFeats = leftGrayArray.concat(rightGrayArray);
+
+        // Add headpose stats
+        var rightCorner = eyes.right.corner;
+        var leftCorner = eyes.left.corner;
+
+        // Creates a user specific distance
+        var distance = Math.sqrt((rightCorner[0] - leftCorner[0]) ** 2 + (rightCorner[1] - leftCorner[1]) ** 2 + (rightCorner[2] - leftCorner[2]) ** 2);
+        allFeats.push(distance / 500);
+
+        // Finds an estimate for head location and standardize it
+        // TODO: Make this automatically adjust for different window sizes
+        var locationX = Math.floor((rightCorner[0] + leftCorner[0]) / 2)
+        var locationY = Math.floor((rightCorner[1] + leftCorner[1]) / 2)
+        allFeats.push(locationX / 1920)
+        allFeats.push(locationY / 1080)
+
+        // Finding normal vector to the plane created by eye corners and nose
+        var nose = eyes.left.nose;
+        var nl = [leftCorner[0] - nose[0], leftCorner[1] - nose[1], leftCorner[2] - nose[2]];
+        var nr = [rightCorner[0] - nose[0], rightCorner[1] - nose[1], rightCorner[2] - nose[2]];
+        var headPose = [(nl[1]*nr[2] - nl[2]*nr[1]), - (nl[0]*nr[2] - nl[2]*nr[0]) , (nl[0]*nr[1] - nl[1]*nr[0])];
+
+        // Make it a unit vector
+        var magnitude = Math.sqrt(headPose[0] **2 + headPose[1] **2 + headPose[2] **2);
+        headPose = [headPose[0] / magnitude, headPose[1] / magnitude, headPose[2] / magnitude];
+
+        // Find the angle it creates and normalize it by dividing by pi/2
+        // aTan can return NaN with negative numbers so convert afterwards
+        if (headPose[0] > 0){
+            var xAngle = Math.sqrt(Math.atan(headPose[0]/headPose[2])) / Math.sqrt(3.1415 / 2);
+        } else {
+            var xAngle = -1*(Math.sqrt(Math.atan((headPose[0]*-1)/headPose[2])) / Math.sqrt(3.1415 / 2));
+        }
+        var yAngle = Math.sqrt(Math.atan(headPose[1]/headPose[2])) / Math.sqrt(3.1415 / 2);
+        headPose = [xAngle, yAngle]
+        allFeats.concat(headPose);
+
+        // Find the head tilt angle
+        var tilt = Math.atan((rightCorner[1] - leftCorner[1]) / (rightCorner[0] - leftCorner[0])) / (3.1415 / 2)
+        // console.log(tilt)
+        allFeats.push(tilt)
+  
+        return allFeats;
+    }
+
+    function standardize(){
+
     }
 
     //TODO: still usefull ???
@@ -43737,6 +43793,14 @@ function supports_ogg_theora_video() {
         this.dataClicks = new webgazer.util.DataWindow(dataWindow);
         this.dataTrail = new webgazer.util.DataWindow(trailDataWindow);
 
+        // Regression coefficients
+        let numPixels = resizeWidth * resizeHeight * 2
+        this.coefficientsX = new Array(numPixels).fill(0);
+        this.coefficientsY = new Array(numPixels).fill(0);
+        this.muList = new Array(numPixels).fill(0);
+        this.sdList = new Array(numPixels).fill(0);
+        this.hasRegressed = false
+
         // Initialize Kalman filter [20200608 xk] what do we do about parameters?
         // [20200611 xk] unsure what to do w.r.t. dimensionality of these matrices. So far at least 
         //               by my own anecdotal observation a 4x1 x vector seems to work alright
@@ -43768,7 +43832,23 @@ function supports_ogg_theora_video() {
         var x_initial = [[500], [500], [0], [0]]; // Initial measurement matrix
 
         this.kalman = new self.webgazer.util.KalmanFilter(F, H, Q, R, P_initial, x_initial);
+
     };
+
+
+    /**
+     * Updates the regression coefficients for predictions
+     */
+    webgazer.reg.RidgeReg.prototype.regress = function(){
+
+        var screenXArray = this.screenXClicksArray.data;
+        var screenYArray = this.screenYClicksArray.data;
+        var eyeFeatures = this.eyeFeaturesClicks.data;
+
+        this.coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
+        this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
+    } 
+
 
     /**
      * Add given data from eyes
@@ -43787,7 +43867,9 @@ function supports_ogg_theora_video() {
             this.screenXClicksArray.push([screenPos[0]]);
             this.screenYClicksArray.push([screenPos[1]]);
 
+            // This now includes the headpose inputs
             this.eyeFeaturesClicks.push(getEyeFeats(eyes));
+
             this.dataClicks.push({'eyes':eyes, 'screenPos':screenPos, 'type':type});
         } else if (type === 'move') {
             this.screenXTrailArray.push([screenPos[0]]);
@@ -43797,6 +43879,15 @@ function supports_ogg_theora_video() {
             this.trailTimes.push(performance.now());
             this.dataTrail.push({'eyes':eyes, 'screenPos':screenPos, 'type':type});
         }
+
+        // Initialize coefficient list
+        if (!this.hasRegressed){
+            let numPixels = resizeWidth * resizeHeight * 2
+            this.coefficientsX = new Array(numPixels).fill(0);
+            this.coefficientsY = new Array(numPixels).fill(0);
+            this.hasRegressed = true;
+        }
+
 
         // [20180730 JT] Why do we do this? It doesn't return anything...
         // But as JS is pass by reference, it still affects it.
@@ -43816,39 +43907,30 @@ function supports_ogg_theora_video() {
         if (!eyesObj || this.eyeFeaturesClicks.length === 0) {
             return null;
         }
-        var acceptTime = performance.now() - this.trailTime;
-        var trailX = [];
-        var trailY = [];
-        var trailFeat = [];
-        for (var i = 0; i < this.trailDataWindow; i++) {
-            if (this.trailTimes.get(i) > acceptTime) {
-                trailX.push(this.screenXTrailArray.get(i));
-                trailY.push(this.screenYTrailArray.get(i));
-                trailFeat.push(this.eyeFeaturesTrail.get(i));
-            }
+
+        // Initialize coefficient list
+        if (!this.hasRegressed){
+            let numPixels = resizeWidth * resizeHeight * 2
+            this.coefficientsX = new Array(numPixels).fill(0);
+            this.coefficientsY = new Array(numPixels).fill(0);
+            this.hasRegressed = true;
         }
-
-        var screenXArray = this.screenXClicksArray.data.concat(trailX);
-        var screenYArray = this.screenYClicksArray.data.concat(trailY);
-        var eyeFeatures = this.eyeFeaturesClicks.data.concat(trailFeat);
-
-        var coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
-        var coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
 
         var eyeFeats = getEyeFeats(eyesObj);
         var predictedX = 0;
         for(var i=0; i< eyeFeats.length; i++){
-            predictedX += eyeFeats[i] * coefficientsX[i];
+            predictedX += eyeFeats[i] * this.coefficientsX[i];
         }
         var predictedY = 0;
         for(var i=0; i< eyeFeats.length; i++){
-            predictedY += eyeFeats[i] * coefficientsY[i];
+            predictedY += eyeFeats[i] * this.coefficientsY[i];
         }
-
+        
         predictedX = Math.floor(predictedX);
         predictedY = Math.floor(predictedY);
 
-        if (window.applyKalmanFilter) {
+        // Check if preidctedX and predictedY are real values, otherwise the kalman filter becomes incorrect
+        if (window.applyKalmanFilter && predictedX && predictedY) {
             // Update Kalman model, and get prediction
             var newGaze = [predictedX, predictedY]; // [20200607 xk] Should we use a 1x4 vector?
             newGaze = this.kalman.update(newGaze);
@@ -43864,6 +43946,7 @@ function supports_ogg_theora_video() {
             };
         }
     };
+
 
     /**
      * Add given data to current data set then,
@@ -44823,15 +44906,25 @@ function supports_ogg_theora_video() {
  * This is used by the calibration example file
  */
 var store_points_var = false;
-var xPast50 = new Array(50);
-var yPast50 = new Array(50);
+var xPastPoints = new Array(50);
+var yPastPoints = new Array(50);
+var numPastPoints = 50;
+
+/**
+ * Change number of points to be stored, defaults to 50 as above
+ */
+function adjust_num_stored_points(num) {
+  numPastPoints = num;
+  xPastPoints = new Array(num);
+  yPastPoints = new Array(num);
+}
 
 /*
  * Stores the position of the fifty most recent tracker preditions
  */
 function store_points(x, y, k) {
-  xPast50[k] = x;
-  yPast50[k] = y;
+  xPastPoints[k] = x;
+  yPastPoints[k] = y;
 }
 
 /**
@@ -44865,6 +44958,8 @@ function store_points(x, y, k) {
     webgazer.params.faceOverlayId = 'webgazerFaceOverlay';
     webgazer.params.faceFeedbackBoxId = 'webgazerFaceFeedbackBox';
     webgazer.params.gazeDotId = 'webgazerGazeDot'
+
+    
     
     webgazer.params.videoViewerWidth = 320;
     webgazer.params.videoViewerHeight = 240;
@@ -44872,6 +44967,7 @@ function store_points(x, y, k) {
     webgazer.params.faceFeedbackBoxRatio = 0.66;
 
     // View options
+    webgazer.params.useVideoFile = false;
     webgazer.params.showVideo = true;
     webgazer.params.mirrorVideo = true;
     webgazer.params.showFaceOverlay = true;
@@ -45099,6 +45195,7 @@ function store_points(x, y, k) {
         }
         for (var reg in regs) {
             predictions.push(regs[reg].predict(latestEyeFeatures));
+
         }
         if (regModelIndex !== undefined) {
             return predictions[regModelIndex] === null ? null : {
@@ -45124,7 +45221,6 @@ function store_points(x, y, k) {
 
     async function loop() {
         if (!paused) {
-
             // [20200617 XK] TODO: there is currently lag between the camera input and the face overlay. This behavior
             // is not seen in the facemesh demo. probably need to optimize async implementation. I think the issue lies
             // in the implementation of getPrediction().
@@ -45178,22 +45274,23 @@ function store_points(x, y, k) {
                 var pred = webgazer.util.bound({'x':x/len, 'y':y/len});
 
                 if (store_points_var) {
-                    drawCoordinates('blue',pred.x,pred.y); //draws the previous predictions
+                    // drawCoordinates('blue',pred.x,pred.y); //draws the previous predictions
                     //store the position of the past fifty occuring tracker preditions
                     store_points(pred.x, pred.y, k);
                     k++;
-                    if (k == 50) {
+                    if (k == numPastPoints) {
                         k = 0;
                     }
                 }
                 // GazeDot
                 if (!webgazer.params.showGazeDot) {
-                    webgazer.params.showGazeDot = true;
+                    gazeDot.style.display = 'none';
+                } else {
                     gazeDot.style.display = 'block';
+                    gazeDot.style.transform = 'translate3d(' + pred.x + 'px,' + pred.y + 'px,0)';
                 }
-                gazeDot.style.transform = 'translate3d(' + pred.x + 'px,' + pred.y + 'px,0)';
+                
             } else {
-                webgazer.params.showGazeDot = false;
                 gazeDot.style.display = 'none';
             }
 
@@ -45221,60 +45318,13 @@ function store_points(x, y, k) {
             if( latestEyeFeatures )
                 regs[reg].addData(latestEyeFeatures, [x, y], eventType);
         }
-    };
-
-    /**
-     * Records click data and passes it to the regression model
-     * @param {Event} event - The listened event
-     */
-    var clickListener = async function(event) {
-        recordScreenPosition(event.clientX, event.clientY, eventTypes[0]); // eventType[0] === 'click'
-
         if (window.saveDataAcrossSessions) {
-            // Each click stores the next data point into localforage.
-            await setGlobalData();
+            // stores the next data point into localforage.
+            setGlobalData(); // [20200721 xk] does this need to have an await?
 
             // // Debug line
             // console.log('Model size: ' + JSON.stringify(await localforage.getItem(localstorageDataLabel)).length / 1000000 + 'MB');
         }
-    };
-
-    /**
-     * Records mouse movement data and passes it to the regression model
-     * @param {Event} event - The listened event
-     */
-    var moveListener = function(event) {
-        if (paused) {
-            return;
-        }
-
-        var now = performance.now();
-        if (now < moveClock + webgazer.params.moveTickSize) {
-            return;
-        } else {
-            moveClock = now;
-        }
-        recordScreenPosition(event.clientX, event.clientY, eventTypes[1]); //eventType[1] === 'move'
-    };
-
-    /**
-     * Add event listeners for mouse click and move.
-     */
-    var addMouseEventListeners = function() {
-        //third argument set to true so that we get event on 'capture' instead of 'bubbling'
-        //this prevents a client using event.stopPropagation() preventing our access to the click
-        document.addEventListener('click', clickListener, true);
-        document.addEventListener('mousemove', moveListener, true);
-    };
-
-    /**
-     * Remove event listeners for mouse click and move.
-     */
-    var removeMouseEventListeners = function() {
-        // must set third argument to same value used in addMouseEventListeners
-        // for this to work.
-        document.removeEventListener('click', clickListener, true);
-        document.removeEventListener('mousemove', moveListener, true);
     };
 
     /**
@@ -45339,7 +45389,11 @@ function store_points(x, y, k) {
 
         videoElement = document.createElement('video');
         videoElement.id = webgazer.params.videoElementId;
-        videoElement.srcObject = videoStream; 
+        if (webgazer.params.useVideoFile) {
+            videoElement.src = videoStream;
+        } else {
+            videoElement.srcObject = videoStream;
+        }
         videoElement.autoplay = true;
         videoElement.style.display = webgazer.params.showVideo ? 'block' : 'none';
         videoElement.style.position = 'fixed';
@@ -45418,8 +45472,6 @@ function store_points(x, y, k) {
             e.target.removeEventListener(e.type, setupPreviewVideo);
         };
         videoElement.addEventListener('timeupdate', setupPreviewVideo);
-
-        addMouseEventListeners();
 
         //BEGIN CALLBACK LOOP
         paused = false;
@@ -45508,6 +45560,9 @@ function store_points(x, y, k) {
         return webgazer;
     };
 
+    webgazer.regress = function(){
+        regs[0].regress();
+    }
 
     /**
      * Checks if webgazer has finished initializing after calling begin()
@@ -45711,8 +45766,9 @@ function store_points(x, y, k) {
      *  @return {webgazer} this
      */
     webgazer.setStaticVideo = function(videoLoc) {
-       debugVideoLoc = videoLoc;
-       return webgazer;
+        debugVideoLoc = videoLoc;
+        webgazer.params.useVideoFile = true;
+        return webgazer;
     };
 
     /**
@@ -45742,36 +45798,6 @@ function store_points(x, y, k) {
     };
 
     /**
-     *  Add the mouse click and move listeners that add training data.
-     *  @return {webgazer} this
-     */
-    webgazer.addMouseEventListeners = function() {
-        addMouseEventListeners();
-        return webgazer;
-    };
-
-    /**
-     *  Remove the mouse click and move listeners that add training data.
-     *  @return {webgazer} this
-     */
-    webgazer.removeMouseEventListeners = function() {
-        removeMouseEventListeners();
-        return webgazer;
-    };
-
-    /**
-     *  Records current screen position for current pupil features.
-     *  @param {String} x - position on screen in the x axis
-     *  @param {String} y - position on screen in the y axis
-     *  @return {webgazer} this
-     */
-    webgazer.recordScreenPosition = function(x, y) {
-        // give this the same weight that a click gets.
-        recordScreenPosition(x, y, eventTypes[0]);
-        return webgazer;
-    };
-
-    /**
      *  Records current screen position for current pupil features.
      *  @param {String} x - position on screen in the x axis
      *  @param {String} y - position on screen in the y axis
@@ -45779,7 +45805,9 @@ function store_points(x, y, k) {
      *  @return {webgazer} this
      */
     webgazer.recordScreenPosition = function(x, y, eventType) {
-        // give this the same weight that a click gets.
+        // by default, give this the same weight that a click gets
+        eventType = eventType ? eventType : eventTypes[0];
+
         recordScreenPosition(x, y, eventType);
         return webgazer;
     };
