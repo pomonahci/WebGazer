@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<!--
+This is an example HTML that shows how WebGazer can be used on a website.
+This file provides the additional features:
+  * An integrated, intuitive and sleek action bar with an informative "help" module accessible at all times
+  * Structured 9-point calibration system
+  * Accuracy measure of predictions based on calibration process
+  * Video feedback regarding face positioning
+  * Improved eye predictions visible to the user
+Instructions on use can be found in the README repository.
+-->
+<html>
+    <head>
+        <META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+        <TITLE>Eyetracking for Readability</TITLE>
+        <link rel="stylesheet" type="text/css" href="./css/style.css">
+        <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css?family=Comic+Neue">
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.min.css">
+        <script async type="text/javascript" src="./webgazer.js"></script>
+        <style>
+          body {
+            margin: 0;
+          }
+          p {
+            font-family: 'Comic Neue', sans-serif;
+          }
+          #wrapper {
+            padding: 1%;
+            box-sizing: border-box;
+            width: 100%;
+          }
+          #text-col {
+            margin: 250px auto 0;
+            width: 250px;
+            font-size: 16px;
+            float: left;
+          }
+          #toggle-button {
+            float: right;
+          }
+          #eyebox_canvas {
+            position: absolute;
+            top:0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: 1% auto;
+            text-align: center;
+            -moz-transform: scale(-1, 1);
+            -webkit-transform: scale(-1, 1);
+            -o-transform: scale(-1, 1);
+            transform: scale(-1, 1);
+            filter: FlipH;
+          }
+          #timer {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+          }
+          #prediction {
+            position: absolute;
+            bottom: 40px;
+            right: 20px;
+          }
+          #spacebar {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+          }
+        </style>
+    </head>
+    <body LANG="en-US" LINK="#0000ff" DIR="LTR">
+
+      <div id="toggle-button">
+        <button onclick="toggleTextLayout()">Toggle Text Layout</button>
+      </div>
+      
+      <script>
+        var textLayoutMode = 0;
+        var toggleTextLayout = function() {
+          textLayoutMode = (textLayoutMode + 1) % 3;
+          switch(textLayoutMode) {
+            case 0:
+              document.getElementById("text-col").style.width = "250px";
+              document.getElementById("text-col").style.float = "left";
+              break;
+            case 1:
+              document.getElementById("text-col").style.width = "250px";
+              document.getElementById("text-col").style.float = "none";
+              break;
+            case 2:
+              document.getElementById("text-col").style.width = "100%";
+              document.getElementById("text-col").style.float = "none";
+              break;
+          }
+          
+        }
+      </script>
+
+      <div id="eyebox">
+        <canvas id="eyebox_canvas" width="150" height="50" style="border:1px solid #000000;"></canvas>
+      </div>
+      <div id="wrapper">
+        <div id="text-col">
+          <p>
+            Here's how to make the best tuna
+            fish sandwich in the
+            neighborhood, maybe the entire
+            galaxy! Go to the grocery store
+            and buy a 9 ounce can of tuna
+            fish, celery, onions, pita bread,
+            and mayonnaise or salad
+            dressing. Using a spoon, spoon
+            half the tuna in the can into a
+            bowl. Get some celery and onions
+            and chop them up with a knife.
+            When done chopping the celery
+            and onions mix them with
+            mayonnaise or salad dressing in a
+            large bowl.
+          </p>
+        </div>
+      </div>
+      <div id="timer"></div>
+      <div id="prediction"></div>
+      <b id="spacebar">SPACE</b>
+
+      <canvas id="plotting_canvas" width="500" height="500" style="cursor:crosshair;"></canvas>
+      <script src="./node_modules/jquery/dist/jquery.min.js"></script>
+      <script src="./node_modules/sweetalert/dist/sweetalert.min.js"></script>
+      <script src="./js/reading.js"></script>
+      <script src="./js/precision_calculation.js"></script>
+      <script src="./js/precision_store_points.js"></script>
+      </nav>
+      <!-- Latest compiled JavaScript -->
+      <script src="./js/resize_canvas.js"></script>
+      <script src="./node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
+    </body>
+</html>
