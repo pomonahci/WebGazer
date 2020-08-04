@@ -317,16 +317,16 @@
         if (window.applyKalmanFilter && predictedX && predictedY) {
             // Update Kalman model, and get prediction
             var newGaze = [predictedX, predictedY]; // [20200607 xk] Should we use a 1x4 vector?
-            newGaze = this.kalman.update(newGaze);
+            newGaze = this.kalman.update(newGaze); // [20200803 xk] Maybe have two separate Kalman filters for the x,y coordinates? 
     
             return {
                 x: newGaze[0],
-                y: newGaze[1]
+                y: 1 // newGaze[1]
             };
         } else {
             return {
                 x: predictedX,
-                y: predictedY
+                y: 1 // predictedY
             };
         }
     };

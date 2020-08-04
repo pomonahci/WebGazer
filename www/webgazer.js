@@ -43933,16 +43933,16 @@ function supports_ogg_theora_video() {
         if (window.applyKalmanFilter && predictedX && predictedY) {
             // Update Kalman model, and get prediction
             var newGaze = [predictedX, predictedY]; // [20200607 xk] Should we use a 1x4 vector?
-            newGaze = this.kalman.update(newGaze);
+            newGaze = this.kalman.update(newGaze); // [20200803 xk] Maybe have two separate Kalman filters for the x,y coordinates? 
     
             return {
                 x: newGaze[0],
-                y: newGaze[1]
+                y: 1 // newGaze[1]
             };
         } else {
             return {
                 x: predictedX,
-                y: predictedY
+                y: 1 // predictedY
             };
         }
     };
@@ -45216,7 +45216,7 @@ function store_points(x, y, k) {
     /**
      * Runs every available animation frame if webgazer is not paused
      */
-    var smoothingVals = new webgazer.util.DataWindow(1);
+    var smoothingVals = new webgazer.util.DataWindow(4);
     var k = 0;
 
     async function loop() {
@@ -45271,7 +45271,8 @@ function store_points(x, y, k) {
                     y += smoothingVals.get(d).y;
                 }
 
-                var pred = webgazer.util.bound({'x':x/len, 'y':y/len});
+                // var pred = webgazer.util.bound({'x':x/len, 'y':y/len});
+                var pred = webgazer.util.bound({'x':x/len, 'y':window.innerHeight / 2});
 
                 if (store_points_var) {
                     // drawCoordinates('blue',pred.x,pred.y); //draws the previous predictions

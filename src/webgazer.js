@@ -287,7 +287,7 @@
     /**
      * Runs every available animation frame if webgazer is not paused
      */
-    var smoothingVals = new webgazer.util.DataWindow(1);
+    var smoothingVals = new webgazer.util.DataWindow(4);
     var k = 0;
 
     async function loop() {
@@ -342,7 +342,8 @@
                     y += smoothingVals.get(d).y;
                 }
 
-                var pred = webgazer.util.bound({'x':x/len, 'y':y/len});
+                // var pred = webgazer.util.bound({'x':x/len, 'y':y/len});
+                var pred = webgazer.util.bound({'x':x/len, 'y':window.innerHeight / 2});
 
                 if (store_points_var) {
                     // drawCoordinates('blue',pred.x,pred.y); //draws the previous predictions
