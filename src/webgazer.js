@@ -245,8 +245,35 @@
             canvas.height = height;
         }
 
+        var newWidth, newHeight;
+
+        if (inputElement === imageElement) {
+            newWidth = inputElement.naturalWidth;
+            newHeight = inputElement.naturalHeight;
+        }
+        
+        else if (inputElement === videoElement) {
+            newWidth = inputElement.videoWidth;
+            newHeight = inputElement.videoHeight;
+        }
+
+        var viewerRatio = webgazer.params.videoViewerWidth / webgazer.params.videoViewerHeight;
+        var inputRatio = newWidth/newHeight;
+        var widthOffset = 0, heightOffset = 0;
+
+        // If input is too wide
+        if (inputRatio > viewerRatio) {
+            widthOffset = newWidth - Math.floor(newHeight * viewerRatio);
+            newWidth = newWidth - widthOffset;   
+        }
+        // If input too tall
+        else if (inputRatio < viewerRatio) {
+            heightOffset = newHeight - Math.floor(newWidth / viewerRatio);
+            newHeight = newHeight - heightOffset;
+        }
+
         var ctx = canvas.getContext('2d');
-        ctx.drawImage(inputElement, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(inputElement, widthOffset/2, heightOffset/2, newWidth, newHeight, 0, 0, canvas.width, canvas.height);
     }
 
     /**
@@ -1033,7 +1060,9 @@
 
         // Creates image element on document, and replaces video feed with images
         initImageElement();
-        inputElement = imageElement;
+
+        // // Discard first element (labels)
+        // lines.shift();
 
         // print all lines
         for (const line of lines) {
@@ -1042,6 +1071,8 @@
             
             // Set image source of image element to the inputted image
             imageElement.src = tokens[0];
+
+            inputElement = imageElement;
 
             // pause for 500 ms
             await new Promise(r => setTimeout(r, 500));
@@ -1074,10 +1105,12 @@
 
         // Creates image element on document, and replaces video feed with images
         initImageElement();
-        inputElement = imageElement;
 
         // Prepare to collect error points
         var measurements = [];
+
+        // // Discard first element (labels)
+        // lines.shift();
 
         // For each line
         for (const line of lines) {
@@ -1086,6 +1119,8 @@
             
             // Set image source of image element to the inputted image
             imageElement.src = tokens[0];
+
+            inputElement = imageElement;
 
             // Create new arrays of the correct size
             adjust_num_stored_points(numTestPoints) // method declared in src/precision.js
