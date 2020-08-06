@@ -25,6 +25,9 @@ $(document).keydown(function(e){
     if (e.keyCode == 67) { // 'c'
         webgazer.clearData();
     }
+    if (e.keyCode == 190) { // '.'
+    webgazer.regress();
+}
 });
 
 $(document).keyup(function(e){

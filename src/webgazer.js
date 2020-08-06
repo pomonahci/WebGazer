@@ -342,8 +342,9 @@
                     y += smoothingVals.get(d).y;
                 }
 
+                // TODO: Comment out the appropriate line
                 // var pred = webgazer.util.bound({'x':x/len, 'y':y/len});
-                var pred = webgazer.util.bound({'x':x/len, 'y':window.innerHeight / 2});
+                var pred = webgazer.util.bound({'x':x/len, 'y':window.innerHeight / 3});
 
                 if (store_points_var) {
                     // drawCoordinates('blue',pred.x,pred.y); //draws the previous predictions

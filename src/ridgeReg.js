@@ -321,12 +321,12 @@
     
             return {
                 x: newGaze[0],
-                y: 1 // newGaze[1]
+                y: newGaze[1]
             };
         } else {
             return {
                 x: predictedX,
-                y: 1 // predictedY
+                y: predictedY
             };
         }
     };
