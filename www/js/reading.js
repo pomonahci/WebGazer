@@ -140,10 +140,10 @@ async function eyeboxLoop() {
 
 var startTime = Date.now();
 
-var interval = setInterval(function() {
-    elapsedTime = Date.now() - startTime;
-    document.getElementById("timer").innerHTML = elapsedTime;
-}, 1);
+// var interval = setInterval(function() {
+//     elapsedTime = Date.now() - startTime;
+//     document.getElementById("timer").innerHTML = elapsedTime;
+// }, 1);
     
 // Kalman Filter defaults to on. Can be toggled by user.
 window.applyKalmanFilter = true;
