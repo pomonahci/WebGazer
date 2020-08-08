@@ -45401,9 +45401,9 @@ function store_points(x, y, k) {
 
     /**
      * Initializes all needed dom elements and begins the loop
-     * @param {URL} videoStream - The video stream to use
+     * @param {URL} vs - The video stream to use
      */
-    async function init(videoStream) {
+    async function init(vs) {
         //////////////////////////
         // Video and video preview
         //////////////////////////
@@ -45412,10 +45412,13 @@ function store_points(x, y, k) {
 
         videoElement = document.createElement('video');
         videoElement.id = webgazer.params.videoElementId;
+        videoStream = vs;
         if (webgazer.params.useVideoFile) {
-            videoElement.src = videoStream;
+            videoElement.src = vs;
+            videoStream = videoElement.srcObject;
+            webgazer.setCameraConstraints({ width: { min: 320, ideal: 1280, max: 1920 }, height: { min: 240, ideal: 720, max: 1080 }, facingMode: "user" });
         } else {
-            videoElement.srcObject = videoStream;
+            videoElement.srcObject = vs;
         }
         videoElement.autoplay = true;
         videoElement.style.display = webgazer.params.showVideo ? 'block' : 'none';
@@ -45506,30 +45509,56 @@ function store_points(x, y, k) {
         await loop();
     }
 
+    /**
+     * [20200807 xk] TODO: really messy, clean this up
+     */
     function initImageElement() {
 
+        var imageContainer = document.createElement("div");
+        imageContainer.style.position = "fixed";
+        imageContainer.style.top = "0px";
+        imageContainer.style.left = "0px";
+        imageContainer.style.width = webgazer.params.videoViewerWidth + 'px';
+        imageContainer.style.height = webgazer.params.videoViewerHeight + 'px';
+        imageContainer.style.overflow = 'hidden';
+        imageContainer.style.zIndex = '-1';
+        imageContainer.style.display = "relative";
+
+        document.body.appendChild(imageContainer);
+        
         imageElement = document.createElement("img");
+        imageContainer.appendChild(imageElement);
 
         imageElement.id = webgazer.params.imageElementId;
-        imageElement.style.position = 'fixed';
-        imageElement.style.top = "0px";
-        imageElement.style.left = "0px";
+        imageElement.style.position = 'absolute';
+        // imageElement.style.top = "0px";
+        // imageElement.style.left = "0px";
         // We set these to stop the video appearing too large when it is added for the very first time
         // imageElement.style.width = webgazer.params.videoViewerWidth + 'px';
         imageElement.style.height = webgazer.params.videoViewerHeight + 'px';
         imageElement.style.zIndex = "-1";
+        // imageElement.style.margin = `-${webgazer.params.videoViewerHeight/2} 0 0 -${webgazer.params.videoViewerWidth/2}px;`;
+        imageElement.style.top = "50%";
+        imageElement.style.left = "50%";
+        imageElement.style.transform = "translate(-50%, -50%)";
+        imageElement.style.setProperty("-moz-transform", "translate(-50%, -50%)");
+        imageElement.style.setProperty("-webkit-transform", "translate(-50%, -50%)");
+        imageElement.style.setProperty("-o-transform", "translate(-50%, -50%)");
+        
         // Mirror video feed
         if (webgazer.params.mirrorVideo) {
-            imageElement.style.setProperty("-moz-transform", "scale(-1, 1)");
-            imageElement.style.setProperty("-webkit-transform", "scale(-1, 1)");
-            imageElement.style.setProperty("-o-transform", "scale(-1, 1)");
-            imageElement.style.setProperty("transform", "scale(-1, 1)");
+            imageElement.style.setProperty("-moz-transform", "scale(-1, 1) translate(-50%, -50%)");
+            imageElement.style.setProperty("-webkit-transform", "scale(-1, 1) translate(-50%, -50%)");
+            imageElement.style.setProperty("-o-transform", "scale(-1, 1) translate(-50%, -50%)");
+            imageElement.style.setProperty("transform", "scale(-1, 1) translate(-50%, -50%)");
             imageElement.style.setProperty("filter", "FlipH");
         }
-        document.body.appendChild(imageElement);
-
+        
+        
         // Set image element to be the input
         inputElement = imageElement;
+
+        return imageContainer;
     }
 
     /**
@@ -45964,12 +45993,12 @@ function store_points(x, y, k) {
     }
 
     /**
-     * @param {*} csv url/location of csv file
+     * @param {*} file url/location of csv file
      * @returns Promise containing text of file body
      */
-    async function readTextFile(csv) {
+    async function readTextFile(file) {
         // Gets the response and returns the text
-        var response = await fetch(csv);
+        var response = await fetch(file);
         if (response.status !== 200)
             throw response.status;
         return response.text();
@@ -45988,7 +46017,7 @@ function store_points(x, y, k) {
         videoElement.style.display = "none";
 
         // Creates image element on document, and replaces video feed with images
-        initImageElement();
+        var imageContainer = initImageElement();
 
         // // Discard first element (labels)
         // lines.shift();
@@ -45997,22 +46026,23 @@ function store_points(x, y, k) {
         for (const line of lines) {
             // [filename, actualX, actualY]
             var tokens = line.split(',');
-            
-            // Set image source of image element to the inputted image
-            imageElement.src = tokens[0];
+            if (tokens.length == 3) {
+                // Set image source of image element to the inputted image
+                imageElement.src = tokens[0];
+                inputElement = imageElement;
 
-            inputElement = imageElement;
-
-            // pause for 500 ms
-            await new Promise(r => setTimeout(r, 500));
-            recordScreenPosition(tokens[1], tokens[2], 'click');
-            
-            // pause for 100 ms
-            await new Promise(r => setTimeout(r, 100));
+                // pause for 500 ms
+                await new Promise(r => setTimeout(r, 500));
+                recordScreenPosition(tokens[1], tokens[2], 'click');
+                
+                // pause for 100 ms
+                await new Promise(r => setTimeout(r, 100));
+            }
         }
 
         // Removes image from page, sets input back to video
-        document.body.removeChild(imageElement);
+        imageContainer.removeChild(imageElement);
+        document.body.removeChild(imageContainer);
         videoElement.style.display = "block";
         inputElement = videoElement;
 
@@ -46033,7 +46063,7 @@ function store_points(x, y, k) {
         videoElement.style.display = "none";
 
         // Creates image element on document, and replaces video feed with images
-        initImageElement();
+        var imageContainer = initImageElement();
 
         // Prepare to collect error points
         var measurements = [];
@@ -46045,37 +46075,38 @@ function store_points(x, y, k) {
         for (const line of lines) {
             // [filename, actualX, actualY]
             var tokens = line.split(',');
-            
-            // Set image source of image element to the inputted image
-            imageElement.src = tokens[0];
 
-            inputElement = imageElement;
 
-            // Create new arrays of the correct size
-            adjust_num_stored_points(numTestPoints) // method declared in src/precision.js
+            if (tokens.length == 3) {
+                // Set image source of image element to the inputted image
+                imageElement.src = tokens[0];
 
-            // pause for 1000 ms to allow for the predictions to catch up
-            await new Promise(r => setTimeout(r, 1000));
+                inputElement = imageElement;
 
-            // Collect points for 1500 ms
-            store_points_var = true; // store_points_var declared in src/precision.js
-            await new Promise(r => setTimeout(r, 1500));
-            
-            // Store actual (x,y) with an array of corresponding (x,y) predictions.
-            measurements.push({
-                x: tokens[1],
-                y: tokens[2],
-                xPredArray: xPastPoints,
-                yPredArray: xPastPoints
-            })
-            store_points_var = false;
+                // Create new arrays of the correct size
+                adjust_num_stored_points(numTestPoints) // method declared in src/precision.js
+
+                // pause for 1200 ms to allow for the predictions to catch up
+                await new Promise(r => setTimeout(r, 1200)); // [20200807] TODO: tune this value
+
+                var pred = await getPrediction();
+                
+                // Store actual (x,y) with an array of corresponding (x,y) predictions.
+                measurements.push({
+                    actualX: tokens[1],
+                    actualY: tokens[2],
+                    x: pred.x,
+                    y: pred.y,
+                })
+            }
         }
             
         // pause for 100 ms
         await new Promise(r => setTimeout(r, 100));
 
         // Removes image from page, sets input back to video
-        document.body.removeChild(imageElement);
+        imageContainer.removeChild(imageElement);
+        document.body.removeChild(imageContainer);
         videoElement.style.display = "block";
         inputElement = videoElement;
 
@@ -46084,10 +46115,7 @@ function store_points(x, y, k) {
         var out = [];
         out.push("actualX,actualY,predictedX,predictedY");
         measurements.forEach((item, index) => {
-            console.log(item);
-            for (var i = 0; i < item.xPredArray.length; i++) {
-                out.push(`${item.x},${item.y},${item.xPredArray[i]},${item.yPredArray[i]}`)
-            }
+            out.push(`${item.actualX},${item.actualY},${item.x},${item.y}`)
         });
         console.log(out.join('\n'));
     }
