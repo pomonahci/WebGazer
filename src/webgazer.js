@@ -408,7 +408,6 @@
         }
         for (var reg in regs) {
             if( latestEyeFeatures ) {
-                console.log(latestEyeFeatures);
                 regs[reg].addData(latestEyeFeatures, [x, y], eventType);
             }
         }
@@ -1076,9 +1075,52 @@
     }
 
     /**
-     * @param {*} csv url/location of csv file
+     * @param {*} dir dir that has profiles.csv file and all profile directories, e.g. ./profiles
      */
-    webgazer.setCalibrationFrames = async function(csv) {
+    webgazer.setBatchCalibrationTestProfiles = async function(dir) {
+        // Get csv fule
+        var csv = `${dir}/profiles.csv`;
+        var text = await readTextFile(csv);
+
+        // split the contents by new line
+        var lines = text.split(/\r?\n/);
+
+        // For each line
+        for (const [i, line] of lines.entries()) {
+            // empty regression model before each profile
+            webgazer.clearData();
+            // [profileIndex,profileDirName]
+            var tokens = line.split(',');
+
+            if (tokens.length == 2) {
+                await webgazer.setCalibrationTestProfile(tokens[0], `${dir}/${tokens[1]}`);
+            } else {
+                console.log(`bad entry at ${csv}:${i}`)
+            }
+        }
+        // empty data 
+        webgazer.clearData();
+    }
+
+    /**
+     * @param dir filepath to participant profile directory containing calibration.csv, test.csv, and directory frames
+     *            e.g. ./profiles/xander
+     * 
+     * [20200810 xk] TODO: change / to path.sep, once nodification done
+     */
+    webgazer.setCalibrationTestProfile = async function(index, dir) {
+        await webgazer.setCalibrationFrames(dir); 
+        await new Promise(r => setTimeout(r, 500));
+        console.log(`profile: ${index}, ${dir}`)
+        await webgazer.setErrorTestFrames(dir);
+    }
+
+    /**
+     * @param {*} dir filepath to dir that contains frames/ and csv file whose entries point to images in frames/,
+     *                e.g. ./profiles/xander
+     */
+    webgazer.setCalibrationFrames = async function(dir) {
+        var csv = `${dir}/calibration.csv`;
         var text = await readTextFile(csv);
 
         // split the contents by new line
@@ -1094,20 +1136,24 @@
         // lines.shift();
 
         // print all lines
-        for (const line of lines) {
+        for (const [i, line] of lines.entries()) {
             // [filename, actualX, actualY]
             var tokens = line.split(',');
+
+            // Only if valid line on csv
             if (tokens.length == 3) {
                 // Set image source of image element to the inputted image
-                imageElement.src = tokens[0];
+                imageElement.src = `${dir}/${tokens[0]}`;
                 inputElement = imageElement;
 
-                // pause for 500 ms
-                await new Promise(r => setTimeout(r, 500));
+                // pause for 450 ms
+                await new Promise(r => setTimeout(r, 450));
                 recordScreenPosition(tokens[1], tokens[2], 'click');
                 
-                // pause for 100 ms
-                await new Promise(r => setTimeout(r, 100));
+                // pause for 50 ms
+                await new Promise(r => setTimeout(r, 50));
+            } else {
+                console.log(`bad entry at ${csv}:${i}`)
             }
         }
 
@@ -1121,10 +1167,11 @@
     }
 
     /**
-     * @param {*} csv url/location of csv file
-     * @param {number} numTestPoints how many points we want to record (max depends on computer specs)
+     * @param {*} dir filepath to dir that contains frames/ and csv file whose entries point to images in frames/,
+     *                e.g. ./profiles/xander
      */
-    webgazer.setErrorTestFrames = async function(csv, numTestPoints) {
+    webgazer.setErrorTestFrames = async function(dir) {
+        var csv = `${dir}/test.csv`;
         var text = await readTextFile(csv);
 
         // split the contents by new line
@@ -1143,22 +1190,22 @@
         // lines.shift();
 
         // For each line
-        for (const line of lines) {
+        for (const [i, line] of lines.entries()) {
             // [filename, actualX, actualY]
             var tokens = line.split(',');
 
-
             if (tokens.length == 3) {
                 // Set image source of image element to the inputted image
-                imageElement.src = tokens[0];
+                imageElement.src = `${dir}/${tokens[0]}`;
 
                 inputElement = imageElement;
 
-                // Create new arrays of the correct size
-                adjust_num_stored_points(numTestPoints) // method declared in src/precision.js
-
-                // pause for 1200 ms to allow for the predictions to catch up
-                await new Promise(r => setTimeout(r, 1200)); // [20200807] TODO: tune this value
+                // Throw away first few (10) predictions [20200811 xk] tune this value
+                for (var k = 0; k < 10; k++) {
+                    await getPrediction();
+                    // pause for 50 ms
+                    await new Promise(r => setTimeout(r, 50));
+                }
 
                 var pred = await getPrediction();
                 
@@ -1169,6 +1216,8 @@
                     x: pred.x,
                     y: pred.y,
                 })
+            } else {
+                console.log(`bad entry at ${csv}:${i}`)
             }
         }
             
