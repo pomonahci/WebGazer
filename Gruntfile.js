@@ -24,6 +24,7 @@ module.exports = function(grunt) {
 					'dependencies/numeric-1.2.6.min.js',
 					'dependencies/tensorflow/tfjs-core.js',
 					'dependencies/tensorflow/tfjs-converter.js',
+					'dependencies/tensorflow/tfjs-layers.js',
 					'dependencies/tensorflow/facemesh.js',
 					'dependencies/utils.js',
 					'src/facemesh.js',
@@ -35,6 +36,8 @@ module.exports = function(grunt) {
 					'src/ridgeRegThreaded.js',
 					'src/util.js',
 					'src/precision.js',
+					'src/normalization.js',
+					'src/multiReg.js',
 					'src/webgazer.js'
 				],
 				dest: './build/webgazer.js'

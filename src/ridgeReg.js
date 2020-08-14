@@ -12,6 +12,8 @@
     var resizeHeight = 20;
     var dataWindow = 700;
     var trailDataWindow = 10;
+    var model;
+    var trained = false;
 
     /**
      * Performs ridge regression, according to the Weka code.
@@ -58,6 +60,88 @@
         } while (!success);
         return m_Coefficients;
     }
+
+    
+
+    /**
+     * Calculates the mean and standard deviation of each column of a data array.
+     *
+     * @param {Tensor2d} data Dataset from which to calculate the mean and
+     *                        std of each column independently.
+     *
+     * @returns {Object} Contains the mean and standard deviation of each vector
+     *                   column as 1d tensors.
+     */
+    function determineMeanAndStddev(data) {
+        const dataMean = data.mean(0);
+        // TODO(bileschi): Simplify when and if tf.var / tf.std added to the API.
+        const diffFromMean = data.sub(dataMean);
+        const squaredDiffFromMean = diffFromMean.square();
+        const variance = squaredDiffFromMean.mean(0);
+        const dataStd = variance.sqrt();
+        return {dataMean, dataStd};
+  }
+
+    /**
+     * Given expected mean and standard deviation, normalizes a dataset by
+     * subtracting the mean and dividing by the standard deviation.
+     *
+     * @param {Tensor2d} data: Data to normalize. Shape: [batch, numFeatures].
+     * @param {Tensor1d} dataMean: Expected mean of the data. Shape [numFeatures].
+     * @param {Tensor1d} dataStd: Expected std of the data. Shape [numFeatures]
+     *
+     * @returns {Tensor2d}: Tensor the same shape as data, but each column
+     * normalized to have zero mean and unit standard deviation.
+     */
+    function normalizeTensor(data, dataMean, dataStd) {
+        return data.sub(dataMean).div(dataStd);
+    }
+
+    /**
+     * Builds and returns Linear Regression Model.
+     *
+     * @returns {tf.Sequential} The linear regression model.
+     */
+    // function linearRegressionModel() {
+    //     model = tf.sequential();
+    //     model.add(tf.layers.dense({inputShape: [120], units: 2, kernelRegularizer: tf.regularizers.l2()}));
+    //     model.summary();
+    // };
+
+    function linearRegressionModel() {
+        model = tf.sequential();
+        model.add(tf.layers.dense({inputShape: [1606], units: 2, kernelRegularizer: tf.regularizers.l2()}));
+        model.summary();
+    };
+
+    async function run(input, output) {
+        // Some hyperparameters for model training.
+        const NUM_EPOCHS = 200;
+        const BATCH_SIZE = 40;
+        const LEARNING_RATE = 0.0000000001
+        STOPPING_EPISILON = 0.0001
+        ;
+        model.compile(
+            {optimizer: tf.train.sgd(LEARNING_RATE), loss: 'meanSquaredError'});
+      
+        var history = await model.fit(input, 
+            output, 
+            {batchSize: BATCH_SIZE,
+                epochs: NUM_EPOCHS, 
+                callbacks: tf.callbacks.earlyStopping({monitor: 'meanSquaredError', 
+                patience: 1, minDelta: STOPPING_EPISILON})})
+        console.log(history)
+        trained = true;
+    }
+
+    function multiRidge(input, output){
+        linearRegressionModel();
+        run(input, output);
+
+    }
+    
+
+
     
     /**
      * Compute eyes size as gray histogram
@@ -114,8 +198,9 @@
             var xAngle = -1*(Math.sqrt(Math.atan((headPose[0]*-1)/headPose[2])) / Math.sqrt(3.1415 / 2));
         }
         var yAngle = Math.sqrt(Math.atan(headPose[1]/headPose[2])) / Math.sqrt(3.1415 / 2);
-        headPose = [xAngle, yAngle]
-        allFeats.concat(headPose);
+        headPose = [xAngle, yAngle];
+        allFeats.push(headPose[0]);
+        allFeats.push(headPose[1]);
 
         // Find the head tilt angle
         var tilt = Math.atan((rightCorner[1] - leftCorner[1]) / (rightCorner[0] - leftCorner[0])) / (3.1415 / 2)
@@ -123,10 +208,6 @@
         allFeats.push(tilt)
   
         return allFeats;
-    }
-
-    function standardize(){
-
     }
 
     //TODO: still usefull ???
@@ -185,6 +266,7 @@
         this.sdList = new Array(numPixels).fill(0);
         this.hasRegressed = false
 
+
         // Initialize Kalman filter [20200608 xk] what do we do about parameters?
         // [20200611 xk] unsure what to do w.r.t. dimensionality of these matrices. So far at least 
         //               by my own anecdotal observation a 4x1 x vector seems to work alright
@@ -229,8 +311,22 @@
         var screenYArray = this.screenYClicksArray.data;
         var eyeFeatures = this.eyeFeaturesClicks.data;
 
-        this.coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
-        this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
+        var XYArray = [];
+
+        for (var i = 0; i < screenXArray.length; i++){
+            temp = [screenXArray[i][0], screenYArray[i][0]];
+            XYArray.push(temp)
+        }
+        
+
+        var output = tf.tensor2d(XYArray);
+        tf.print(output)
+        var input = tf.tensor2d(eyeFeatures)
+        console.log(input.shape)
+
+        // this.coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
+        // this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
+        var model = multiRidge(input, output)
     } 
 
 
@@ -301,14 +397,25 @@
         }
 
         var eyeFeats = getEyeFeats(eyesObj);
-        var predictedX = 0;
-        for(var i=0; i< eyeFeats.length; i++){
-            predictedX += eyeFeats[i] * this.coefficientsX[i];
+        console.log(eyeFeats.length)
+        // var predictedX = 0;
+        // for(var i=0; i< eyeFeats.length; i++){
+        //     predictedX += eyeFeats[i] * this.coefficientsX[i];
+        // }
+        // var predictedY = 0;
+        // for(var i=0; i< eyeFeats.length; i++){
+        //     predictedY += eyeFeats[i] * this.coefficientsY[i];
+        // }
+        var predictedX = 0
+        var predictedY = 0
+        if (model && trained){
+            eyeFeatsLength = eyeFeats.length;
+            var prediction = model.predict(tf.tensor2d(eyeFeats, [1,1606]));
+            var predictionList = prediction.arraySync();
+            predictedX = predictionList[0][0];
+            predictedY = predictionList[0][1];
         }
-        var predictedY = 0;
-        for(var i=0; i< eyeFeats.length; i++){
-            predictedY += eyeFeats[i] * this.coefficientsY[i];
-        }
+        console.log(predictedX, predictedY);
         
         predictedX = Math.floor(predictedX);
         predictedY = Math.floor(predictedY);
