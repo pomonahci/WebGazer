@@ -121,13 +121,35 @@
     };
 
     /**
+     * Updates the facemesh prediction
+     * @param  {Canvas} imageCanvas - canvas corresponding to the webcam stream
+     */
+    TFFaceMesh.prototype.update = async function(imageCanvas) {
+ 
+        if (imageCanvas.width === 0) {
+            throw "imageCanvas.width === 0";
+        }
+
+        // Load the MediaPipe facemesh model.
+        const model = await this.model;
+
+        // Pass in a video stream (or an image, canvas, or 3D tensor) to obtain an
+        // array of detected faces from the MediaPipe graph.
+        const predictions = await model.estimateFaces(imageCanvas);
+
+        // Save positions to global variable
+        this.positionsArray = predictions[0].scaledMesh;
+        const positions = this.positionsArray;
+    };
+
+
+    /**
      * Returns the positions array corresponding to the last call to getEyePatches.
      * Requires that getEyePatches() was called previously, else returns null.
      */
     TFFaceMesh.prototype.getPositions = function () {
         return this.positionsArray;
     }
-    
 
     /**
      * Reset the tracker to default values

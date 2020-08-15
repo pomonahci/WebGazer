@@ -2,7 +2,7 @@ var videoLoc = "../test.webm" // [20200702 xk] TODO: Source needs to be 4:3 reso
 
 window.onload = function() {
 
-    webgazer.params.mirrorVideo = false;
+    webgazer.params.mirrorVideo = true;
 
     //start the webgazer tracker
     webgazer.setRegression('ridge') /* currently must set regression and tracker */

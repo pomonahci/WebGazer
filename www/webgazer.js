@@ -42901,13 +42901,35 @@ function supports_ogg_theora_video() {
     };
 
     /**
+     * Updates the facemesh prediction
+     * @param  {Canvas} imageCanvas - canvas corresponding to the webcam stream
+     */
+    TFFaceMesh.prototype.update = async function(imageCanvas) {
+ 
+        if (imageCanvas.width === 0) {
+            throw "imageCanvas.width === 0";
+        }
+
+        // Load the MediaPipe facemesh model.
+        const model = await this.model;
+
+        // Pass in a video stream (or an image, canvas, or 3D tensor) to obtain an
+        // array of detected faces from the MediaPipe graph.
+        const predictions = await model.estimateFaces(imageCanvas);
+
+        // Save positions to global variable
+        this.positionsArray = predictions[0].scaledMesh;
+        const positions = this.positionsArray;
+    };
+
+
+    /**
      * Returns the positions array corresponding to the last call to getEyePatches.
      * Requires that getEyePatches() was called previously, else returns null.
      */
     TFFaceMesh.prototype.getPositions = function () {
         return this.positionsArray;
     }
-    
 
     /**
      * Reset the tracker to default values
@@ -45281,7 +45303,7 @@ function store_points(x, y, k) {
             // [20200623 xk] callback to function passed into setGazeListener(fn)
             callback(latestGazeData, elapsedTime);
             
-            if( latestGazeData ) {
+            if( latestGazeData && !Number.isNaN(latestGazeData.x) && !Number.isNaN(latestGazeData.y) ) {
                 // [20200608 XK] Smoothing across the most recent 4 predictions, do we need this with Kalman filter?
                 smoothingVals.push(latestGazeData);
                 var x = 0;
@@ -45508,10 +45530,7 @@ function store_points(x, y, k) {
         await loop();
     }
 
-    /**
-     * [20200807 xk] TODO: really messy, clean this up
-     */
-    function initImageElement() {
+    function createImageContainer() {
 
         var imageContainer = document.createElement("div");
         imageContainer.style.position = "fixed";
@@ -45524,41 +45543,70 @@ function store_points(x, y, k) {
         imageContainer.style.display = "relative";
 
         document.body.appendChild(imageContainer);
-        
-        imageElement = document.createElement("img");
-        imageContainer.appendChild(imageElement);
-
-        imageElement.id = webgazer.params.imageElementId;
-        imageElement.style.position = 'absolute';
-        // imageElement.style.top = "0px";
-        // imageElement.style.left = "0px";
-        // We set these to stop the video appearing too large when it is added for the very first time
-        // imageElement.style.width = webgazer.params.videoViewerWidth + 'px';
-        imageElement.style.height = webgazer.params.videoViewerHeight + 'px';
-        imageElement.style.zIndex = "-1";
-        // imageElement.style.margin = `-${webgazer.params.videoViewerHeight/2} 0 0 -${webgazer.params.videoViewerWidth/2}px;`;
-        imageElement.style.top = "50%";
-        imageElement.style.left = "50%";
-        imageElement.style.transform = "translate(-50%, -50%)";
-        imageElement.style.setProperty("-moz-transform", "translate(-50%, -50%)");
-        imageElement.style.setProperty("-webkit-transform", "translate(-50%, -50%)");
-        imageElement.style.setProperty("-o-transform", "translate(-50%, -50%)");
-        
-        // Mirror video feed
-        if (webgazer.params.mirrorVideo) {
-            imageElement.style.setProperty("-moz-transform", "scale(-1, 1) translate(-50%, -50%)");
-            imageElement.style.setProperty("-webkit-transform", "scale(-1, 1) translate(-50%, -50%)");
-            imageElement.style.setProperty("-o-transform", "scale(-1, 1) translate(-50%, -50%)");
-            imageElement.style.setProperty("transform", "scale(-1, 1) translate(-50%, -50%)");
-            imageElement.style.setProperty("filter", "FlipH");
-        }
-        
-        
-        // Set image element to be the input
-        inputElement = imageElement;
 
         return imageContainer;
     }
+
+    /**
+     * [20200807 xk] TODO: really messy, clean this up
+     */
+    async function loadImageElement(imgSrc, imageContainer) {
+
+        // We want to wait for image to finish loading, so we load image inside a promise
+        const imageLoadPromise = new Promise(resolve => {
+            imageElement = document.createElement("img");
+
+            // Called once image is loaded into element
+            imageElement.onload = function() {
+                
+                imageContainer.appendChild(imageElement);
+        
+                imageElement.id = webgazer.params.imageElementId;
+                imageElement.style.position = 'absolute';
+                // imageElement.style.top = "0px";
+                // imageElement.style.left = "0px";
+                // We set these to stop the video appearing too large when it is added for the very first time
+                // imageElement.style.width = webgazer.params.videoViewerWidth + 'px';
+                imageElement.style.height = webgazer.params.videoViewerHeight + 'px';
+                imageElement.style.zIndex = "-1";
+                // imageElement.style.margin = `-${webgazer.params.videoViewerHeight/2} 0 0 -${webgazer.params.videoViewerWidth/2}px;`;
+                imageElement.style.top = "50%";
+                imageElement.style.left = "50%";
+                imageElement.style.transform = "translate(-50%, -50%)";
+                imageElement.style.setProperty("-moz-transform", "translate(-50%, -50%)");
+                imageElement.style.setProperty("-webkit-transform", "translate(-50%, -50%)");
+                imageElement.style.setProperty("-o-transform", "translate(-50%, -50%)");
+                
+                // Mirror video feed
+                if (webgazer.params.mirrorVideo) {
+                    imageElement.style.setProperty("-moz-transform", "scale(-1, 1) translate(-50%, -50%)");
+                    imageElement.style.setProperty("-webkit-transform", "scale(-1, 1) translate(-50%, -50%)");
+                    imageElement.style.setProperty("-o-transform", "scale(-1, 1) translate(-50%, -50%)");
+                    imageElement.style.setProperty("transform", "scale(-1, 1) translate(-50%, -50%)");
+                    imageElement.style.setProperty("filter", "FlipH");
+                }
+                
+                // Set image element to be the input
+                inputElement = imageElement;
+
+                // Paint it to frame
+                paintCurrentFrame(videoElementCanvas, videoElementCanvas.width, videoElementCanvas.height);
+
+                // Resolve promise
+                resolve();
+            };
+
+            // Set the image source, triggers .onload
+            imageElement.src = imgSrc;
+        });
+
+        // Wait for image to finish initializing
+        await imageLoadPromise;
+
+        // Done loading image
+        return 1;
+    }
+
 
     /**
      * Initializes navigator.mediaDevices.getUserMedia
@@ -46016,8 +46064,6 @@ function store_points(x, y, k) {
 
         // For each line
         for (const [i, line] of lines.entries()) {
-            // empty regression model before each profile
-            webgazer.clearData();
             // [profileIndex,profileDirName]
             var tokens = line.split(',');
 
@@ -46038,10 +46084,14 @@ function store_points(x, y, k) {
      * [20200810 xk] TODO: change / to path.sep, once nodification done
      */
     webgazer.setCalibrationTestProfile = async function(index, dir) {
+        webgazer.pause();
+        // empty regression model before each profile
+        webgazer.clearData();
         await webgazer.setCalibrationFrames(dir); 
-        await new Promise(r => setTimeout(r, 500));
-        console.log(`profile: ${index}, ${dir}`)
-        await webgazer.setErrorTestFrames(dir);
+        // await new Promise(r => setTimeout(r, 500));
+        // console.log(`profile: ${index}, ${dir}`)
+        // await webgazer.setErrorTestFrames(dir);
+        webgazer.resume();
     }
 
     /**
@@ -46059,26 +46109,40 @@ function store_points(x, y, k) {
         videoElement.style.display = "none";
 
         // Creates image element on document, and replaces video feed with images
-        var imageContainer = initImageElement();
-
-        // // Discard first element (labels)
-        // lines.shift();
+        var imageContainer = createImageContainer();
 
         // print all lines
         for (const [i, line] of lines.entries()) {
+            console.log(line);
             // [filename, actualX, actualY]
             var tokens = line.split(',');
 
             // Only if valid line on csv
             if (tokens.length == 3) {
                 // Set image source of image element to the inputted image
-                imageElement.src = `${dir}/${tokens[0]}`;
-                inputElement = imageElement;
+                await loadImageElement(`${dir}/${tokens[0]}`, imageContainer);
+                console.log("done loading image");
 
-                // pause for 450 ms
-                await new Promise(r => setTimeout(r, 450));
-                recordScreenPosition(tokens[1], tokens[2], 'click');
+                // Draw face overlay
+                if( webgazer.params.showFaceOverlay )
+                {
+                    
+                    // Get tracker object
+                    var tracker = webgazer.getTracker();
+
+                    // Keep going until facemesh converges onto the same face prediction
+                    for (var k = 0; k < 5; k++) {
+                        await tracker.update(videoElementCanvas);
+                        await faceOverlay.getContext('2d').clearRect( 0, 0, imageElement.naturalWidth, imageElement.naturalHeight);
+                        await tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
+                        console.log(tracker.getPositions()[33][0]);
+                    }
+                }
                 
+                // Load eyes into the regression model
+                var eyes = await getPupilFeatures(videoElementCanvas, videoElementCanvas.width, videoElementCanvas.height);
+                regs[0].addData(eyes, [tokens[1], tokens[2]], 'click');
+
                 // pause for 50 ms
                 await new Promise(r => setTimeout(r, 50));
             } else {
@@ -46091,7 +46155,7 @@ function store_points(x, y, k) {
         document.body.removeChild(imageContainer);
         videoElement.style.display = "block";
         inputElement = videoElement;
-
+        
         webgazer.regress();
     }
 
@@ -46110,7 +46174,7 @@ function store_points(x, y, k) {
         videoElement.style.display = "none";
 
         // Creates image element on document, and replaces video feed with images
-        var imageContainer = initImageElement();
+        var imageContainer = createImageContainer();
 
         // Prepare to collect error points
         var measurements = [];
