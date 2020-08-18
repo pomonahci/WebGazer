@@ -310,11 +310,11 @@
             predictedY += eyeFeats[i] * this.coefficientsY[i];
         }
         
-        predictedX = Math.floor(predictedX);
-        predictedY = Math.floor(predictedY);
+        // predictedX = Math.floor(predictedX);
+        // predictedY = Math.floor(predictedY);
 
         // Check if preidctedX and predictedY are real values, otherwise the kalman filter becomes incorrect
-        if (window.applyKalmanFilter && predictedX && predictedY) {
+        if (window.applyKalmanFilter && !Number.isNaN(predictedX) && !Number.isNaN(predictedY)) {
             // Update Kalman model, and get prediction
             var newGaze = [predictedX, predictedY]; // [20200607 xk] Should we use a 1x4 vector?
             newGaze = this.kalman.update(newGaze);

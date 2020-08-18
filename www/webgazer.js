@@ -42805,45 +42805,26 @@ function supports_ogg_theora_video() {
     /**
      * Isolates the two patches that correspond to the user's eyes
      * @param  {Canvas} imageCanvas - canvas corresponding to the webcam stream
-     * @param  {Number} width - of imageCanvas
-     * @param  {Number} height - of imageCanvas
+     * @param  {Boolean} update - whether or not to update the face overlay prediction
      * @return {Object} the two eye-patches, first left, then right eye
      */
-    TFFaceMesh.prototype.getEyePatches = async function(imageCanvas, width, height) {
- 
-        if (imageCanvas.width === 0) {
-            return null;
+    TFFaceMesh.prototype.getEyePatches = async function(imageCanvas, update) {
+
+        // Update facemesh prediction if needed
+        if (update) {
+            try {
+                await this.update(imageCanvas);
+            } catch (e) {
+                if (e.name == "BadCanvasError") return null;
+                else if (e.name == "BadPredictionError") return false;
+            }
         }
 
-        // Load the MediaPipe facemesh model.
-        const model = await this.model;
-
-        // Pass in a video stream (or an image, canvas, or 3D tensor) to obtain an
-        // array of detected faces from the MediaPipe graph.
-        const predictions = await model.estimateFaces(imageCanvas);
-        
-        if (predictions.length == 0){
-            return false;
-        }
-
-        // Save positions to global variable
-        this.positionsArray = predictions[0].scaledMesh;
+        // Get value saved to global variable
         const positions = this.positionsArray;
 
         // Fit the detected eye in a rectangle. [20200626 xk] not clear which approach is better
         // https://raw.githubusercontent.com/tensorflow/tfjs-models/master/facemesh/mesh_map.jpg
-
-        // // Maintains a relatively stable shape of the bounding box at the cost of cutting off parts of
-        // // the eye when the eye is tilted.
-        // var leftOriginX = Math.round(positions[130][0]);
-        // var leftOriginY = Math.round(positions[27][1]);
-        // var leftWidth = Math.round(positions[243][0] - leftOriginX);
-        // var leftHeight = Math.round(positions[23][1] - leftOriginY);
-        // var rightOriginX = Math.round(positions[463][0]);
-        // var rightOriginY = Math.round(positions[257][1]);
-        // var rightWidth = Math.round(positions[359][0] - rightOriginX);
-        // var rightHeight = Math.round(positions[253][1] - rightOriginY);
-        
         // Won't really cut off any parts of the eye, at the cost of warping the shape (i.e. height/
         // width ratio) of the bounding box.
         var leftOriginX = Math.round(Math.min(positions[247][0], positions[130][0], positions[25][0]));
@@ -42855,7 +42836,7 @@ function supports_ogg_theora_video() {
         var rightWidth = Math.round(Math.max(positions[467][0], positions[359][0], positions[255][0]) - rightOriginX);
         var rightHeight = Math.round(Math.max(positions[341][1], positions[253][1], positions[255][1]) - rightOriginY);
         
-        // Head pose testing
+        // Head pose
         var leftEyeCorner = positions[33];
         var rightEyeCorner = positions[263];
         var noseTip = positions[1];
@@ -42906,9 +42887,7 @@ function supports_ogg_theora_video() {
      */
     TFFaceMesh.prototype.update = async function(imageCanvas) {
  
-        if (imageCanvas.width === 0) {
-            throw "imageCanvas.width === 0";
-        }
+        if (imageCanvas.width === 0) throw {name: "BadCanvasError", message: "imageCanvas.width === 0"};
 
         // Load the MediaPipe facemesh model.
         const model = await this.model;
@@ -42917,9 +42896,10 @@ function supports_ogg_theora_video() {
         // array of detected faces from the MediaPipe graph.
         const predictions = await model.estimateFaces(imageCanvas);
 
+        if (predictions.length == 0) throw {name: "BadPredictionError", message: "predictions.length == 0"};
+
         // Save positions to global variable
         this.positionsArray = predictions[0].scaledMesh;
-        const positions = this.positionsArray;
     };
 
 
@@ -43948,11 +43928,11 @@ function supports_ogg_theora_video() {
             predictedY += eyeFeats[i] * this.coefficientsY[i];
         }
         
-        predictedX = Math.floor(predictedX);
-        predictedY = Math.floor(predictedY);
+        // predictedX = Math.floor(predictedX);
+        // predictedY = Math.floor(predictedY);
 
         // Check if preidctedX and predictedY are real values, otherwise the kalman filter becomes incorrect
-        if (window.applyKalmanFilter && predictedX && predictedY) {
+        if (window.applyKalmanFilter && !Number.isNaN(predictedX) && !Number.isNaN(predictedY)) {
             // Update Kalman model, and get prediction
             var newGaze = [predictedX, predictedY]; // [20200607 xk] Should we use a 1x4 vector?
             newGaze = this.kalman.update(newGaze);
@@ -45167,15 +45147,13 @@ function store_points(x, y, k) {
      * Gets the pupil features by following the pipeline which threads an eyes object through each call:
      * curTracker gets eye patches -> blink detector -> pupil detection
      * @param {Canvas} canvas - a canvas which will have the video drawn onto it
-     * @param {Number} width - the width of canvas
-     * @param {Number} height - the height of canvas
      */
-    function getPupilFeatures(canvas, width, height) {
+    function getPupilFeatures(canvas) {
         if (!canvas) {
             return;
         }
         try {
-            return curTracker.getEyePatches(canvas, width, height);
+            return curTracker.getEyePatches(canvas, true);
         } catch(err) {
             console.log(err);
             return null;
@@ -45235,7 +45213,7 @@ function store_points(x, y, k) {
     async function getPrediction(regModelIndex) {
         var predictions = [];
         // [20200617 xk] TODO: this call should be made async somehow. will take some work.
-        latestEyeFeatures = await getPupilFeatures(videoElementCanvas, videoElementCanvas.width, videoElementCanvas.height);
+        latestEyeFeatures = await getPupilFeatures(videoElementCanvas);
 
         if (regs.length === 0) {
             console.log('regression not set, call setRegression()');
@@ -45313,7 +45291,7 @@ function store_points(x, y, k) {
                     x += smoothingVals.get(d).x;
                     y += smoothingVals.get(d).y;
                 }
-
+                
                 var pred = webgazer.util.bound({'x':x/len, 'y':y/len});
 
                 if (store_points_var) {
@@ -46088,9 +46066,9 @@ function store_points(x, y, k) {
         // empty regression model before each profile
         webgazer.clearData();
         await webgazer.setCalibrationFrames(dir); 
-        // await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 500));
         // console.log(`profile: ${index}, ${dir}`)
-        // await webgazer.setErrorTestFrames(dir);
+        await webgazer.setErrorTestFrames(dir);
         webgazer.resume();
     }
 
@@ -46121,26 +46099,21 @@ function store_points(x, y, k) {
             if (tokens.length == 3) {
                 // Set image source of image element to the inputted image
                 await loadImageElement(`${dir}/${tokens[0]}`, imageContainer);
-                console.log("done loading image");
 
                 // Draw face overlay
-                if( webgazer.params.showFaceOverlay )
-                {
-                    
-                    // Get tracker object
-                    var tracker = webgazer.getTracker();
+                // Get tracker object
+                var tracker = webgazer.getTracker();
 
-                    // Keep going until facemesh converges onto the same face prediction
-                    for (var k = 0; k < 5; k++) {
-                        await tracker.update(videoElementCanvas);
-                        await faceOverlay.getContext('2d').clearRect( 0, 0, imageElement.naturalWidth, imageElement.naturalHeight);
-                        await tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
-                        console.log(tracker.getPositions()[33][0]);
-                    }
+                // Keep going until facemesh converges onto the same face prediction [20200817 xk] How do I ensure it has converged?
+                for (let k = 0; k < 30; k++) {
+                    await tracker.update(videoElementCanvas);
+                    await faceOverlay.getContext('2d').clearRect( 0, 0, imageElement.naturalWidth, imageElement.naturalHeight);
+                    await tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
+                    // console.log(tracker.getPositions()[33][0]);
                 }
                 
                 // Load eyes into the regression model
-                var eyes = await getPupilFeatures(videoElementCanvas, videoElementCanvas.width, videoElementCanvas.height);
+                var eyes = await getPupilFeatures(videoElementCanvas);
                 regs[0].addData(eyes, [tokens[1], tokens[2]], 'click');
 
                 // pause for 50 ms
@@ -46182,25 +46155,36 @@ function store_points(x, y, k) {
         // // Discard first element (labels)
         // lines.shift();
 
+        // Disable smoothing for true predictions
+        window.applyKalmanFilter = false;
+
         // For each line
         for (const [i, line] of lines.entries()) {
             // [filename, actualX, actualY]
             var tokens = line.split(',');
 
+            // Only accept valid lines in csv
             if (tokens.length == 3) {
                 // Set image source of image element to the inputted image
-                imageElement.src = `${dir}/${tokens[0]}`;
+                await loadImageElement(`${dir}/${tokens[0]}`, imageContainer);
 
                 inputElement = imageElement;
 
-                // Throw away first few (10) predictions [20200811 xk] tune this value
-                for (var k = 0; k < 10; k++) {
-                    await getPrediction();
-                    // pause for 50 ms
-                    await new Promise(r => setTimeout(r, 50));
+                // Draw face overlay
+                // Get tracker object
+                var tracker = webgazer.getTracker();
+
+                // Keep going until facemesh converges onto the same face prediction [20200817 xk] How do I ensure it has converged?
+                for (let k = 0; k < 30; k++) {
+                    await tracker.update(videoElementCanvas);
+                    await faceOverlay.getContext('2d').clearRect( 0, 0, imageElement.naturalWidth, imageElement.naturalHeight);
+                    await tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
                 }
 
-                var pred = await getPrediction();
+                // Get eye patches from facemesh without updating overlay
+                latestEyeFeatures = await tracker.getEyePatches(videoElementCanvas, false);
+                var pred = regs[0].predict(latestEyeFeatures);
+                console.log(pred.x + ',' + pred.y);
                 
                 // Store actual (x,y) with an array of corresponding (x,y) predictions.
                 measurements.push({
@@ -46213,6 +46197,8 @@ function store_points(x, y, k) {
                 console.log(`bad entry at ${csv}:${i}`)
             }
         }
+
+        window.applyKalmanFilter = true;
             
         // pause for 100 ms
         await new Promise(r => setTimeout(r, 100));

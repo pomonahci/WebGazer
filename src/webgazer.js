@@ -216,15 +216,13 @@
      * Gets the pupil features by following the pipeline which threads an eyes object through each call:
      * curTracker gets eye patches -> blink detector -> pupil detection
      * @param {Canvas} canvas - a canvas which will have the video drawn onto it
-     * @param {Number} width - the width of canvas
-     * @param {Number} height - the height of canvas
      */
-    function getPupilFeatures(canvas, width, height) {
+    function getPupilFeatures(canvas) {
         if (!canvas) {
             return;
         }
         try {
-            return curTracker.getEyePatches(canvas, width, height);
+            return curTracker.getEyePatches(canvas, true);
         } catch(err) {
             console.log(err);
             return null;
@@ -284,7 +282,7 @@
     async function getPrediction(regModelIndex) {
         var predictions = [];
         // [20200617 xk] TODO: this call should be made async somehow. will take some work.
-        latestEyeFeatures = await getPupilFeatures(videoElementCanvas, videoElementCanvas.width, videoElementCanvas.height);
+        latestEyeFeatures = await getPupilFeatures(videoElementCanvas);
 
         if (regs.length === 0) {
             console.log('regression not set, call setRegression()');
@@ -362,7 +360,7 @@
                     x += smoothingVals.get(d).x;
                     y += smoothingVals.get(d).y;
                 }
-
+                
                 var pred = webgazer.util.bound({'x':x/len, 'y':y/len});
 
                 if (store_points_var) {
@@ -1137,9 +1135,9 @@
         // empty regression model before each profile
         webgazer.clearData();
         await webgazer.setCalibrationFrames(dir); 
-        // await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 500));
         // console.log(`profile: ${index}, ${dir}`)
-        // await webgazer.setErrorTestFrames(dir);
+        await webgazer.setErrorTestFrames(dir);
         webgazer.resume();
     }
 
@@ -1170,26 +1168,21 @@
             if (tokens.length == 3) {
                 // Set image source of image element to the inputted image
                 await loadImageElement(`${dir}/${tokens[0]}`, imageContainer);
-                console.log("done loading image");
 
                 // Draw face overlay
-                if( webgazer.params.showFaceOverlay )
-                {
-                    
-                    // Get tracker object
-                    var tracker = webgazer.getTracker();
+                // Get tracker object
+                var tracker = webgazer.getTracker();
 
-                    // Keep going until facemesh converges onto the same face prediction
-                    for (var k = 0; k < 5; k++) {
-                        await tracker.update(videoElementCanvas);
-                        await faceOverlay.getContext('2d').clearRect( 0, 0, imageElement.naturalWidth, imageElement.naturalHeight);
-                        await tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
-                        console.log(tracker.getPositions()[33][0]);
-                    }
+                // Keep going until facemesh converges onto the same face prediction [20200817 xk] How do I ensure it has converged?
+                for (let k = 0; k < 30; k++) {
+                    await tracker.update(videoElementCanvas);
+                    await faceOverlay.getContext('2d').clearRect( 0, 0, imageElement.naturalWidth, imageElement.naturalHeight);
+                    await tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
+                    // console.log(tracker.getPositions()[33][0]);
                 }
                 
                 // Load eyes into the regression model
-                var eyes = await getPupilFeatures(videoElementCanvas, videoElementCanvas.width, videoElementCanvas.height);
+                var eyes = await getPupilFeatures(videoElementCanvas);
                 regs[0].addData(eyes, [tokens[1], tokens[2]], 'click');
 
                 // pause for 50 ms
@@ -1231,25 +1224,36 @@
         // // Discard first element (labels)
         // lines.shift();
 
+        // Disable smoothing for true predictions
+        window.applyKalmanFilter = false;
+
         // For each line
         for (const [i, line] of lines.entries()) {
             // [filename, actualX, actualY]
             var tokens = line.split(',');
 
+            // Only accept valid lines in csv
             if (tokens.length == 3) {
                 // Set image source of image element to the inputted image
-                imageElement.src = `${dir}/${tokens[0]}`;
+                await loadImageElement(`${dir}/${tokens[0]}`, imageContainer);
 
                 inputElement = imageElement;
 
-                // Throw away first few (10) predictions [20200811 xk] tune this value
-                for (var k = 0; k < 10; k++) {
-                    await getPrediction();
-                    // pause for 50 ms
-                    await new Promise(r => setTimeout(r, 50));
+                // Draw face overlay
+                // Get tracker object
+                var tracker = webgazer.getTracker();
+
+                // Keep going until facemesh converges onto the same face prediction [20200817 xk] How do I ensure it has converged?
+                for (let k = 0; k < 30; k++) {
+                    await tracker.update(videoElementCanvas);
+                    await faceOverlay.getContext('2d').clearRect( 0, 0, imageElement.naturalWidth, imageElement.naturalHeight);
+                    await tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
                 }
 
-                var pred = await getPrediction();
+                // Get eye patches from facemesh without updating overlay
+                latestEyeFeatures = await tracker.getEyePatches(videoElementCanvas, false);
+                var pred = regs[0].predict(latestEyeFeatures);
+                console.log(pred.x + ',' + pred.y);
                 
                 // Store actual (x,y) with an array of corresponding (x,y) predictions.
                 measurements.push({
@@ -1262,6 +1266,8 @@
                 console.log(`bad entry at ${csv}:${i}`)
             }
         }
+
+        window.applyKalmanFilter = true;
             
         // pause for 100 ms
         await new Promise(r => setTimeout(r, 100));
