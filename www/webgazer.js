@@ -63685,8 +63685,8 @@ function supports_ogg_theora_video() {
     webgazer.params = webgazer.params || {};
 
     var ridgeParameter = Math.pow(10, -5);
-    var resizeWidth = 40;
-    var resizeHeight = 20;
+    var resizeWidth = 10;
+    var resizeHeight = 6;
     var dataWindow = 700;
     var trailDataWindow = 10;
     var model;
@@ -63779,34 +63779,37 @@ function supports_ogg_theora_video() {
      *
      * @returns {tf.Sequential} The linear regression model.
      */
-    // function linearRegressionModel() {
-    //     model = tf.sequential();
-    //     model.add(tf.layers.dense({inputShape: [120], units: 2, kernelRegularizer: tf.regularizers.l2()}));
-    //     model.summary();
-    // };
-
     function linearRegressionModel() {
         model = tf.sequential();
-        model.add(tf.layers.dense({inputShape: [1606], units: 2, kernelRegularizer: tf.regularizers.l2()}));
+        model.add(tf.layers.dense({inputShape: [120], units: 2, kernelRegularizer: tf.regularizers.l2({l2:.00001})}));
         model.summary();
     };
 
     async function run(input, output) {
+
         // Some hyperparameters for model training.
         const NUM_EPOCHS = 200;
-        const BATCH_SIZE = 40;
-        const LEARNING_RATE = 0.0000000001
+        const BATCH_SIZE = 45;
+        const LEARNING_RATE = 0.0000008
         STOPPING_EPISILON = 0.0001
         ;
         model.compile(
             {optimizer: tf.train.sgd(LEARNING_RATE), loss: 'meanSquaredError'});
       
+        // var history = await model.fit(input, 
+        //     output, 
+        //     {batchSize: BATCH_SIZE,
+        //         epochs: NUM_EPOCHS,
+        //         callbacks: tf.callbacks.earlyStopping({monitor: 'meanSquaredError', 
+        //         patience: 1, minDelta: STOPPING_EPISILON})})
+        // console.log(history)
+        // trained = true;
+
         var history = await model.fit(input, 
             output, 
             {batchSize: BATCH_SIZE,
-                epochs: NUM_EPOCHS, 
-                callbacks: tf.callbacks.earlyStopping({monitor: 'meanSquaredError', 
-                patience: 1, minDelta: STOPPING_EPISILON})})
+                epochs: NUM_EPOCHS,
+                shuffle: true})
         console.log(history)
         trained = true;
     }
@@ -63814,7 +63817,6 @@ function supports_ogg_theora_video() {
     function multiRidge(input, output){
         linearRegressionModel();
         run(input, output);
-
     }
     
 
@@ -63841,6 +63843,7 @@ function supports_ogg_theora_video() {
         var rightGrayArray = Array.prototype.slice.call(histRight);
 
         var allFeats = leftGrayArray.concat(rightGrayArray);
+        return allFeats;
 
         // Add headpose stats
         var rightCorner = eyes.right.corner;
@@ -63994,16 +63997,14 @@ function supports_ogg_theora_video() {
             temp = [screenXArray[i][0], screenYArray[i][0]];
             XYArray.push(temp)
         }
-        
+    
 
         var output = tf.tensor2d(XYArray);
-        tf.print(output)
-        var input = tf.tensor2d(eyeFeatures)
-        console.log(input.shape)
+        var input = tf.tensor2d(eyeFeatures);
 
         // this.coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
         // this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
-        var model = multiRidge(input, output)
+        model = multiRidge(input, output)
     } 
 
 
@@ -64074,7 +64075,7 @@ function supports_ogg_theora_video() {
         }
 
         var eyeFeats = getEyeFeats(eyesObj);
-        console.log(eyeFeats.length)
+        // console.log(eyeFeats.length)
         // var predictedX = 0;
         // for(var i=0; i< eyeFeats.length; i++){
         //     predictedX += eyeFeats[i] * this.coefficientsX[i];
@@ -64087,12 +64088,12 @@ function supports_ogg_theora_video() {
         var predictedY = 0
         if (model && trained){
             eyeFeatsLength = eyeFeats.length;
-            var prediction = model.predict(tf.tensor2d(eyeFeats, [1,1606]));
+            var prediction = model.predict(tf.tensor2d(eyeFeats, [1,120]));
             var predictionList = prediction.arraySync();
             predictedX = predictionList[0][0];
             predictedY = predictionList[0][1];
         }
-        console.log(predictedX, predictedY);
+        // console.log(predictedX, predictedY);
         
         predictedX = Math.floor(predictedX);
         predictedY = Math.floor(predictedY);

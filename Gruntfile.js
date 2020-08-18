@@ -36,8 +36,6 @@ module.exports = function(grunt) {
 					'src/ridgeRegThreaded.js',
 					'src/util.js',
 					'src/precision.js',
-					'src/normalization.js',
-					'src/multiReg.js',
 					'src/webgazer.js'
 				],
 				dest: './build/webgazer.js'
