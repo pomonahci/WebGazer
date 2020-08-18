@@ -8,8 +8,8 @@
     webgazer.params = webgazer.params || {};
 
     var ridgeParameter = Math.pow(10, -5);
-    var resizeWidth = 10;
-    var resizeHeight = 6;
+    var resizeWidth = 40;
+    var resizeHeight = 20;
     var dataWindow = 700;
     var trailDataWindow = 10;
     var model;
@@ -104,35 +104,27 @@
      */
     function linearRegressionModel() {
         model = tf.sequential();
-        model.add(tf.layers.dense({inputShape: [120], units: 2}));
+        model.add(tf.layers.dense({inputShape: [1606], units: 2, kernelRegularizer: tf.regularizers.l2({l2:.00001})}));
         model.summary();
     };
 
     async function run(input, output) {
 
         // Some hyperparameters for model training.
-        const NUM_EPOCHS = 200;
+        const NUM_EPOCHS = 500;
         const BATCH_SIZE = 45;
-        const LEARNING_RATE = 0.00001
-        STOPPING_EPISILON = 0.0001
-        ;
+        const LEARNING_RATE = .1;
+        STOPPING_EPISILON = 0.0001;
+        
         model.compile(
-            {optimizer: tf.train.sgd(LEARNING_RATE), loss: 'meanSquaredError'});
+            {optimizer: tf.train.adam(LEARNING_RATE), loss: 'meanSquaredError'});
       
-        // var history = await model.fit(input, 
-        //     output, 
-        //     {batchSize: BATCH_SIZE,
-        //         epochs: NUM_EPOCHS,
-        //         callbacks: tf.callbacks.earlyStopping({monitor: 'meanSquaredError', 
-        //         patience: 1, minDelta: STOPPING_EPISILON})})
-        // console.log(history)
-        // trained = true;
 
         var history = await model.fit(input, 
             output, 
             {batchSize: BATCH_SIZE,
                 epochs: NUM_EPOCHS,
-                callbacks: {onEpochEnd: (epoch, logs) => console.log(logs.loss)},
+                callbacks: {onEpochEnd: (epoch, logs) => console.log(epoch, logs.loss), },
                 shuffle: true})
         console.log(history)
         trained = true;
@@ -167,7 +159,6 @@
         var rightGrayArray = Array.prototype.slice.call(histRight);
 
         var allFeats = leftGrayArray.concat(rightGrayArray);
-        return allFeats;
 
         // Add headpose stats
         var rightCorner = eyes.right.corner;
@@ -328,7 +319,7 @@
 
         // this.coefficientsX = ridge(screenXArray, eyeFeatures, ridgeParameter);
         // this.coefficientsY = ridge(screenYArray, eyeFeatures, ridgeParameter);
-        model = multiRidge(input, output)
+        var model = multiRidge(input, output)
     } 
 
 
@@ -410,17 +401,20 @@
         // }
         var predictedX = 0
         var predictedY = 0
-        if (model && trained){
+        if (trained){
             eyeFeatsLength = eyeFeats.length;
-            var prediction = model.predict(tf.tensor2d(eyeFeats, [1,120]));
+            var prediction = model.predict(tf.tensor2d(eyeFeats, [1,1606]));
             var predictionList = prediction.arraySync();
             predictedX = predictionList[0][0];
             predictedY = predictionList[0][1];
+            // console.log(predictedX, predictedY)
+            // console.log("hello")
         }
         // console.log(predictedX, predictedY);
         
         predictedX = Math.floor(predictedX);
         predictedY = Math.floor(predictedY);
+
 
         // Check if preidctedX and predictedY are real values, otherwise the kalman filter becomes incorrect
         if (window.applyKalmanFilter && predictedX && predictedY) {
