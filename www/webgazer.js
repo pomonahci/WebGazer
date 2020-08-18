@@ -63781,7 +63781,7 @@ function supports_ogg_theora_video() {
      */
     function linearRegressionModel() {
         model = tf.sequential();
-        model.add(tf.layers.dense({inputShape: [120], units: 2, kernelRegularizer: tf.regularizers.l2({l2:.00001})}));
+        model.add(tf.layers.dense({inputShape: [120], units: 2}));
         model.summary();
     };
 
@@ -63790,7 +63790,7 @@ function supports_ogg_theora_video() {
         // Some hyperparameters for model training.
         const NUM_EPOCHS = 200;
         const BATCH_SIZE = 45;
-        const LEARNING_RATE = 0.0000008
+        const LEARNING_RATE = 0.00001
         STOPPING_EPISILON = 0.0001
         ;
         model.compile(
@@ -63809,6 +63809,7 @@ function supports_ogg_theora_video() {
             output, 
             {batchSize: BATCH_SIZE,
                 epochs: NUM_EPOCHS,
+                callbacks: {onEpochEnd: (epoch, logs) => console.log(logs.loss)},
                 shuffle: true})
         console.log(history)
         trained = true;
