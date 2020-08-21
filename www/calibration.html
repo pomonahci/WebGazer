@@ -52,8 +52,6 @@ Instructions on use can be found in the README repository.
                   <li><a onclick="webgazer.clearData()" href="#">Clear Data</a></li>
                   <li><a onclick="var ts = new Targets(calibrationPoints, 'calibration', 5); ts.start()" href="#">Calibrate</a></li>
                   <li><a onclick="var ts = new Targets(errorPoints, 'error', 20); ts.start()" href="#">Test Error</a></li>
-                  <li>Calibration Points <input type="file" id="input" onchange="webgazer.setCalibrationFrames(this.files[0].name);"></li>
-                  <li>Error Test Points <input type="file" id="input" onchange="webgazer.setErrorTestFrames(this.files[0].name, 20);"></li>
                 </ul>
                 <ul class="nav navbar-nav navbar-right">
                   <li><button class="helpBtn" data-toggle="modal" data-target="#helpModal"><a data-toggle="modal"><span class="glyphicon glyphicon-cog"></span> Help</a></li>

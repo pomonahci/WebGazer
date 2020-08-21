@@ -521,12 +521,10 @@
             videoElement.style.setProperty("-webkit-transform", "scale(-1, 1)");
             videoElement.style.setProperty("-o-transform", "scale(-1, 1)");
             videoElement.style.setProperty("transform", "scale(-1, 1)");
-            videoElement.style.setProperty("filter", "FlipH");
             faceOverlay.style.setProperty("-moz-transform", "scale(-1, 1)");
             faceOverlay.style.setProperty("-webkit-transform", "scale(-1, 1)");
             faceOverlay.style.setProperty("-o-transform", "scale(-1, 1)");
             faceOverlay.style.setProperty("transform", "scale(-1, 1)");
-            faceOverlay.style.setProperty("filter", "FlipH");
         }
 
         // Feedback box
@@ -589,6 +587,14 @@
         imageContainer.style.zIndex = '-1';
         imageContainer.style.display = "relative";
 
+        // Mirror image frame feed
+        if (webgazer.params.mirrorVideo) {
+            imageContainer.style.setProperty("-moz-transform", "scale(-1, 1)");
+            imageContainer.style.setProperty("-webkit-transform", "scale(-1, 1)");
+            imageContainer.style.setProperty("-o-transform", "scale(-1, 1)");
+            imageContainer.style.setProperty("transform", "scale(-1, 1)");
+        }
+
         document.body.appendChild(imageContainer);
 
         return imageContainer;
@@ -601,47 +607,34 @@
 
         // We want to wait for image to finish loading, so we load image inside a promise
         const imageLoadPromise = new Promise(resolve => {
+
             imageElement = document.createElement("img");
+            imageContainer.appendChild(imageElement);
 
             // Called once image is loaded into element
             imageElement.onload = function() {
-                
-                imageContainer.appendChild(imageElement);
-        
-                imageElement.id = webgazer.params.imageElementId;
-                imageElement.style.position = 'absolute';
-                // imageElement.style.top = "0px";
-                // imageElement.style.left = "0px";
-                // We set these to stop the video appearing too large when it is added for the very first time
-                // imageElement.style.width = webgazer.params.videoViewerWidth + 'px';
-                imageElement.style.height = webgazer.params.videoViewerHeight + 'px';
-                imageElement.style.zIndex = "-1";
-                // imageElement.style.margin = `-${webgazer.params.videoViewerHeight/2} 0 0 -${webgazer.params.videoViewerWidth/2}px;`;
-                imageElement.style.top = "50%";
-                imageElement.style.left = "50%";
-                imageElement.style.transform = "translate(-50%, -50%)";
-                imageElement.style.setProperty("-moz-transform", "translate(-50%, -50%)");
-                imageElement.style.setProperty("-webkit-transform", "translate(-50%, -50%)");
-                imageElement.style.setProperty("-o-transform", "translate(-50%, -50%)");
-                
-                // Mirror video feed
-                if (webgazer.params.mirrorVideo) {
-                    imageElement.style.setProperty("-moz-transform", "scale(-1, 1) translate(-50%, -50%)");
-                    imageElement.style.setProperty("-webkit-transform", "scale(-1, 1) translate(-50%, -50%)");
-                    imageElement.style.setProperty("-o-transform", "scale(-1, 1) translate(-50%, -50%)");
-                    imageElement.style.setProperty("transform", "scale(-1, 1) translate(-50%, -50%)");
-                    imageElement.style.setProperty("filter", "FlipH");
-                }
-                
                 // Set image element to be the input
                 inputElement = imageElement;
-
-                // Paint it to frame
-                paintCurrentFrame(videoElementCanvas, videoElementCanvas.width, videoElementCanvas.height);
 
                 // Resolve promise
                 resolve();
             };
+    
+            imageElement.id = webgazer.params.imageElementId;
+            imageElement.style.position = 'absolute';
+            // imageElement.style.top = "0px";
+            // imageElement.style.left = "0px";
+            // We set these to stop the video appearing too large when it is added for the very first time
+            // imageElement.style.width = webgazer.params.videoViewerWidth + 'px';
+            imageElement.style.height = webgazer.params.videoViewerHeight + 'px';
+            imageElement.style.zIndex = "-1";
+            // imageElement.style.margin = `-${webgazer.params.videoViewerHeight/2} 0 0 -${webgazer.params.videoViewerWidth/2}px;`;
+            imageElement.style.top = "50%";
+            imageElement.style.left = "50%";
+            imageElement.style.transform = "translate(-50%, -50%)";
+            imageElement.style.setProperty("-moz-transform", "translate(-50%, -50%)");
+            imageElement.style.setProperty("-webkit-transform", "translate(-50%, -50%)");
+            imageElement.style.setProperty("-o-transform", "translate(-50%, -50%)");
 
             // Set the image source, triggers .onload
             imageElement.src = imgSrc;
@@ -649,6 +642,9 @@
 
         // Wait for image to finish initializing
         await imageLoadPromise;
+
+        // Paint it to canvas that is passed to model
+        paintCurrentFrame(videoElementCanvas, videoElementCanvas.width, videoElementCanvas.height);
 
         // Done loading image
         return 1;
@@ -1108,25 +1104,40 @@
 
         // split the contents by new line
         var lines = text.split(/\r?\n/);
+        var errorOutputArray = [];
 
         // For each line
-        for (const [i, line] of lines.entries()) {
+        for (const [lineNumber, line] of lines.entries()) {
             // [profileIndex,profileDirName]
             var tokens = line.split(',');
 
             if (tokens.length == 2) {
-                await webgazer.setCalibrationTestProfile(tokens[0], `${dir}/${tokens[1]}`);
+                let out = await webgazer.setCalibrationTestProfile(tokens[0], `${dir}/${tokens[1]}`);
+                errorOutputArray.push({
+                    index: tokens[0],
+                    name: tokens[1],
+                    errorCsv: out
+                });
             } else {
-                console.log(`bad entry at ${csv}:${i}`)
+                console.log(`bad entry at ${csv}:${lineNumber}`)
             }
         }
+        
         // empty data 
         webgazer.clearData();
+
+        // Print out the error csvs for each profile
+        for (let profile in errorOutputArray) {
+            console.log(`Error for profile ${profile.name} (index: ${profile.index})`);
+            console.log(errorOutput.csvString);
+        }
     }
 
     /**
+     * @param index index of the participant profile in the csv
      * @param dir filepath to participant profile directory containing calibration.csv, test.csv, and directory frames
      *            e.g. ./profiles/xander
+     * @return csv formatted string of error test
      * 
      * [20200810 xk] TODO: change / to path.sep, once nodification done
      */
@@ -1136,9 +1147,11 @@
         webgazer.clearData();
         await webgazer.setCalibrationFrames(dir); 
         await new Promise(r => setTimeout(r, 500));
-        // console.log(`profile: ${index}, ${dir}`)
-        await webgazer.setErrorTestFrames(dir);
+        console.log(`profile: ${index}, ${dir}`)
+        let out = await webgazer.setErrorTestFrames(dir);
+        console.log(out);
         webgazer.resume();
+        return out;
     }
 
     /**
@@ -1159,27 +1172,29 @@
         var imageContainer = createImageContainer();
 
         // print all lines
-        for (const [i, line] of lines.entries()) {
+        for (const [lineNumber, line] of lines.entries()) {
             console.log(line);
             // [filename, actualX, actualY]
             var tokens = line.split(',');
 
-            // Only if valid line on csv
+            // Only accept valid lines in csv
             if (tokens.length == 3) {
                 // Set image source of image element to the inputted image
                 await loadImageElement(`${dir}/${tokens[0]}`, imageContainer);
 
-                // Draw face overlay
                 // Get tracker object
                 var tracker = webgazer.getTracker();
 
-                // Keep going until facemesh converges onto the same face prediction [20200817 xk] How do I ensure it has converged?
+                // clear face overlay
+                await faceOverlay.getContext('2d').clearRect( 0, 0, videoElementCanvas.width, videoElementCanvas.height);
+                
+                // Keep going until facemesh converges onto the same face prediction. (approx 30 updates)
                 for (let k = 0; k < 30; k++) {
                     await tracker.update(videoElementCanvas);
-                    await faceOverlay.getContext('2d').clearRect( 0, 0, imageElement.naturalWidth, imageElement.naturalHeight);
-                    await tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
-                    // console.log(tracker.getPositions()[33][0]);
                 }
+
+                // Draw face overlay
+                await tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
                 
                 // Load eyes into the regression model
                 var eyes = await getPupilFeatures(videoElementCanvas);
@@ -1188,7 +1203,7 @@
                 // pause for 50 ms
                 await new Promise(r => setTimeout(r, 50));
             } else {
-                console.log(`bad entry at ${csv}:${i}`)
+                console.log(`bad entry at ${csv}:${lineNumber}`)
             }
         }
 
@@ -1198,12 +1213,14 @@
         videoElement.style.display = "block";
         inputElement = videoElement;
         
+        console.log("regressing");
         webgazer.regress();
     }
 
     /**
      * @param {*} dir filepath to dir that contains frames/ and csv file whose entries point to images in frames/,
      *                e.g. ./profiles/xander
+     * @return csv formatted string of error test
      */
     webgazer.setErrorTestFrames = async function(dir) {
         var csv = `${dir}/test.csv`;
@@ -1221,14 +1238,11 @@
         // Prepare to collect error points
         var measurements = [];
 
-        // // Discard first element (labels)
-        // lines.shift();
-
         // Disable smoothing for true predictions
         window.applyKalmanFilter = false;
 
         // For each line
-        for (const [i, line] of lines.entries()) {
+        for (const [lineNumber, line] of lines.entries()) {
             // [filename, actualX, actualY]
             var tokens = line.split(',');
 
@@ -1237,18 +1251,19 @@
                 // Set image source of image element to the inputted image
                 await loadImageElement(`${dir}/${tokens[0]}`, imageContainer);
 
-                inputElement = imageElement;
-
-                // Draw face overlay
                 // Get tracker object
                 var tracker = webgazer.getTracker();
 
-                // Keep going until facemesh converges onto the same face prediction [20200817 xk] How do I ensure it has converged?
+                // clear face overlay
+                await faceOverlay.getContext('2d').clearRect( 0, 0, videoElementCanvas.width, videoElementCanvas.height);
+                
+                // Keep going until facemesh converges onto the same face prediction. (approx 30 updates)
                 for (let k = 0; k < 30; k++) {
                     await tracker.update(videoElementCanvas);
-                    await faceOverlay.getContext('2d').clearRect( 0, 0, imageElement.naturalWidth, imageElement.naturalHeight);
-                    await tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
                 }
+
+                // Draw face overlay
+                await tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
 
                 // Get eye patches from facemesh without updating overlay
                 latestEyeFeatures = await tracker.getEyePatches(videoElementCanvas, false);
@@ -1263,7 +1278,7 @@
                     y: pred.y,
                 })
             } else {
-                console.log(`bad entry at ${csv}:${i}`)
+                console.log(`bad entry at ${csv}:${lineNumber}`)
             }
         }
 
@@ -1278,14 +1293,16 @@
         videoElement.style.display = "block";
         inputElement = videoElement;
 
-        // Prints a csv-formatted string into the console
+        // Creates a csv-formatted string to be printed the console
         console.log("calculating error");
         var out = [];
         out.push("actualX,actualY,predictedX,predictedY");
         measurements.forEach((item, index) => {
             out.push(`${item.actualX},${item.actualY},${item.x},${item.y}`)
         });
-        console.log(out.join('\n'));
+
+        // Return csv string
+        return out.join('\n');
     }
 
     /**
