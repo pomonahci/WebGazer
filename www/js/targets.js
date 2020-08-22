@@ -19,7 +19,8 @@ function Vector(magnitude, angle) {
 }
 
 /**
- * Takes a set of TargetPoints and moves animated target around the screen
+ * Class that handles an array of targetpoints and moves to them smoothly in reverse order.
+ * Note: Make sure www/css/targets.css is added to the head of whatever page you use this on.
  */
 class Targets {
     /**

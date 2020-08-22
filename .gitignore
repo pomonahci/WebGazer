@@ -30,5 +30,6 @@
 *.cpuprofile
 node_modules/
 www/node_modules/
+www/profiles/
 build/webgazer.js
 build/webgazer.min.js

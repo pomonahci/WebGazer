@@ -129,9 +129,9 @@
 
     }
 
-    //TODO: still usefull ???
+    
     /**
-     *
+     * [20200821 xk] TODO: Unused, remove?
      * @returns {Number}
      */
     function getCurrentFixationIndex() {
@@ -178,12 +178,12 @@
         this.dataTrail = new webgazer.util.DataWindow(trailDataWindow);
 
         // Regression coefficients
-        let numPixels = resizeWidth * resizeHeight * 2
+        let numPixels = resizeWidth * resizeHeight * 2;
         this.coefficientsX = new Array(numPixels).fill(0);
         this.coefficientsY = new Array(numPixels).fill(0);
         this.muList = new Array(numPixels).fill(0);
         this.sdList = new Array(numPixels).fill(0);
-        this.hasRegressed = false
+        this.trained = false;
 
         // Initialize Kalman filter [20200608 xk] what do we do about parameters?
         // [20200611 xk] unsure what to do w.r.t. dimensionality of these matrices. So far at least 
@@ -221,10 +221,9 @@
 
 
     /**
-     * Updates the regression coefficients for predictions
+     * Updates the regression coefficients for predictions on both X and Y.
      */
-    webgazer.reg.RidgeReg.prototype.regress = function(){
-
+    webgazer.reg.RidgeReg.prototype.train = function(){
         var screenXArray = this.screenXClicksArray.data;
         var screenYArray = this.screenYClicksArray.data;
         var eyeFeatures = this.eyeFeaturesClicks.data;
@@ -265,11 +264,11 @@
         }
 
         // Initialize coefficient list
-        if (!this.hasRegressed){
+        if (!this.trained){
             let numPixels = resizeWidth * resizeHeight * 2
             this.coefficientsX = new Array(numPixels).fill(0);
             this.coefficientsY = new Array(numPixels).fill(0);
-            this.hasRegressed = true;
+            this.trained = true;
         }
 
 
@@ -293,11 +292,11 @@
         }
 
         // Initialize coefficient list
-        if (!this.hasRegressed){
+        if (!this.trained){
             let numPixels = resizeWidth * resizeHeight * 2
             this.coefficientsX = new Array(numPixels).fill(0);
             this.coefficientsY = new Array(numPixels).fill(0);
-            this.hasRegressed = true;
+            this.trained = true;
         }
 
         var eyeFeats = getEyeFeats(eyesObj);
@@ -310,6 +309,7 @@
             predictedY += eyeFeats[i] * this.coefficientsY[i];
         }
         
+        // [20200821 xk] can we have this be unfloored and just as a float value?
         predictedX = Math.floor(predictedX);
         predictedY = Math.floor(predictedY);
 

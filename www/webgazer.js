@@ -42789,9 +42789,9 @@ function supports_ogg_theora_video() {
      * @constructor
      */
     var TFFaceMesh = function() {
-        //Backend options are webgl, wasm, and CPU.
-        //For recent laptops WASM is better than WebGL.
-        //TODO: This hack makes loading the model block the UI. We should fix that
+        // Backend options are webgl, wasm, and CPU.
+        // For recent laptops WASM is better than WebGL.
+        // TODO: This hack makes loading the model block the UI. We should fix that
         // this.model = (async () => { return await facemesh.load({"maxFaces":1}) })();
         this.model = facemesh.load({"maxFaces":1});
         this.predictionReady = false;
@@ -42833,17 +42833,6 @@ function supports_ogg_theora_video() {
         // Fit the detected eye in a rectangle. [20200626 xk] not clear which approach is better
         // https://raw.githubusercontent.com/tensorflow/tfjs-models/master/facemesh/mesh_map.jpg
 
-        // // Maintains a relatively stable shape of the bounding box at the cost of cutting off parts of
-        // // the eye when the eye is tilted.
-        // var leftOriginX = Math.round(positions[130][0]);
-        // var leftOriginY = Math.round(positions[27][1]);
-        // var leftWidth = Math.round(positions[243][0] - leftOriginX);
-        // var leftHeight = Math.round(positions[23][1] - leftOriginY);
-        // var rightOriginX = Math.round(positions[463][0]);
-        // var rightOriginY = Math.round(positions[257][1]);
-        // var rightWidth = Math.round(positions[359][0] - rightOriginX);
-        // var rightHeight = Math.round(positions[253][1] - rightOriginY);
-        
         // Won't really cut off any parts of the eye, at the cost of warping the shape (i.e. height/
         // width ratio) of the bounding box.
         var leftOriginX = Math.round(Math.min(positions[247][0], positions[130][0], positions[25][0]));
@@ -42913,7 +42902,7 @@ function supports_ogg_theora_video() {
      * Reset the tracker to default values
      */
     TFFaceMesh.prototype.reset = function(){
-        console.log( "Unimplemented; Tracking.js has no obvious reset function" );
+        console.log( "Unimplemented; Facemesh has no obvious reset function" );
     }
 
     /**
@@ -43745,9 +43734,9 @@ function supports_ogg_theora_video() {
 
     }
 
-    //TODO: still usefull ???
+    
     /**
-     *
+     * [20200821 xk] TODO: Unused, remove?
      * @returns {Number}
      */
     function getCurrentFixationIndex() {
@@ -43794,12 +43783,12 @@ function supports_ogg_theora_video() {
         this.dataTrail = new webgazer.util.DataWindow(trailDataWindow);
 
         // Regression coefficients
-        let numPixels = resizeWidth * resizeHeight * 2
+        let numPixels = resizeWidth * resizeHeight * 2;
         this.coefficientsX = new Array(numPixels).fill(0);
         this.coefficientsY = new Array(numPixels).fill(0);
         this.muList = new Array(numPixels).fill(0);
         this.sdList = new Array(numPixels).fill(0);
-        this.hasRegressed = false
+        this.trained = false;
 
         // Initialize Kalman filter [20200608 xk] what do we do about parameters?
         // [20200611 xk] unsure what to do w.r.t. dimensionality of these matrices. So far at least 
@@ -43837,10 +43826,9 @@ function supports_ogg_theora_video() {
 
 
     /**
-     * Updates the regression coefficients for predictions
+     * Updates the regression coefficients for predictions on both X and Y.
      */
-    webgazer.reg.RidgeReg.prototype.regress = function(){
-
+    webgazer.reg.RidgeReg.prototype.train = function(){
         var screenXArray = this.screenXClicksArray.data;
         var screenYArray = this.screenYClicksArray.data;
         var eyeFeatures = this.eyeFeaturesClicks.data;
@@ -43881,11 +43869,11 @@ function supports_ogg_theora_video() {
         }
 
         // Initialize coefficient list
-        if (!this.hasRegressed){
+        if (!this.trained){
             let numPixels = resizeWidth * resizeHeight * 2
             this.coefficientsX = new Array(numPixels).fill(0);
             this.coefficientsY = new Array(numPixels).fill(0);
-            this.hasRegressed = true;
+            this.trained = true;
         }
 
 
@@ -43909,11 +43897,11 @@ function supports_ogg_theora_video() {
         }
 
         // Initialize coefficient list
-        if (!this.hasRegressed){
+        if (!this.trained){
             let numPixels = resizeWidth * resizeHeight * 2
             this.coefficientsX = new Array(numPixels).fill(0);
             this.coefficientsY = new Array(numPixels).fill(0);
-            this.hasRegressed = true;
+            this.trained = true;
         }
 
         var eyeFeats = getEyeFeats(eyesObj);
@@ -43926,6 +43914,7 @@ function supports_ogg_theora_video() {
             predictedY += eyeFeats[i] * this.coefficientsY[i];
         }
         
+        // [20200821 xk] can we have this be unfloored and just as a float value?
         predictedX = Math.floor(predictedX);
         predictedY = Math.floor(predictedY);
 
@@ -44959,8 +44948,6 @@ function store_points(x, y, k) {
     webgazer.params.faceFeedbackBoxId = 'webgazerFaceFeedbackBox';
     webgazer.params.gazeDotId = 'webgazerGazeDot'
 
-    
-    
     webgazer.params.videoViewerWidth = 320;
     webgazer.params.videoViewerHeight = 240;
 
@@ -45195,7 +45182,6 @@ function store_points(x, y, k) {
         }
         for (var reg in regs) {
             predictions.push(regs[reg].predict(latestEyeFeatures));
-
         }
         if (regModelIndex !== undefined) {
             return predictions[regModelIndex] === null ? null : {
@@ -45219,12 +45205,21 @@ function store_points(x, y, k) {
     var smoothingVals = new webgazer.util.DataWindow(4);
     var k = 0;
 
+    /**
+     * Called as an animation frame. Every frame, loop()
+     * - paints latest frame of video element (i.e. camera feed) to videoElementCanvas, which is
+     * the canvas that is passed to facemesh to grab eye data from
+     * - updates facemesh prediction and redraws it
+     * - checks if eyes are in validation box
+     * - gets new prediction from regression model
+     * - updates gaze dot
+     * 
+     * [20200617 XK] there is currently lag between the camera input and the face overlay. This behavior doesn't happen
+     * in the official facemesh demo. probably need to optimize async implementation. I think the issue lies in the
+     * implementation of getPrediction().
+     */
     async function loop() {
         if (!paused) {
-            // [20200617 XK] TODO: there is currently lag between the camera input and the face overlay. This behavior
-            // is not seen in the facemesh demo. probably need to optimize async implementation. I think the issue lies
-            // in the implementation of getPrediction().
-
             // Paint the latest video frame into the canvas which will be analyzed by WebGazer
             // [20180729 JT] Why do we need to do this? clmTracker does this itself _already_, which is just duplicating the work.
             // Is it because other trackers need a canvas instead of an img/video element?
@@ -45235,13 +45230,13 @@ function store_points(x, y, k) {
             // Count time
             var elapsedTime = performance.now() - clockStart;
 
-
             // Draw face overlay
-            if( webgazer.params.showFaceOverlay )
-            {
+            if (webgazer.params.showFaceOverlay) {
                 // Get tracker object
                 var tracker = webgazer.getTracker();
+                // Clear previously drawn facemesh
                 faceOverlay.getContext('2d').clearRect( 0, 0, videoElement.videoWidth, videoElement.videoHeight);
+                // Redraw facemesh
                 tracker.drawFaceOverlay(faceOverlay.getContext('2d'), tracker.getPositions());
             }
 
@@ -45250,13 +45245,15 @@ function store_points(x, y, k) {
             if( webgazer.params.showFaceFeedbackBox )
                 checkEyesInValidationBox();
 
+            // getPrediction() returns a promise, so we resolve it now
             latestGazeData = await latestGazeData;
 
-            // [20200623 xk] callback to function passed into setGazeListener(fn)
+            // Callback to function passed into webgazer.setGazeListener(fn)
             callback(latestGazeData, elapsedTime);
             
-            if( latestGazeData ) {
-                // [20200608 XK] Smoothing across the most recent 4 predictions, do we need this with Kalman filter?
+            // Predictions will only be made if eye region data has been captured
+            if (latestGazeData) {
+                // Smoothing with a moving average across the most recent 4 predictions
                 smoothingVals.push(latestGazeData);
                 var x = 0;
                 var y = 0;
@@ -45268,6 +45265,7 @@ function store_points(x, y, k) {
 
                 var pred = webgazer.util.bound({'x':x/len, 'y':y/len});
 
+                // For use with precision.js. Used when looking to display a sequence of past predictions on screen
                 if (store_points_var) {
                     // drawCoordinates('blue',pred.x,pred.y); //draws the previous predictions
                     //store the position of the past fifty occuring tracker preditions
@@ -45277,18 +45275,23 @@ function store_points(x, y, k) {
                         k = 0;
                     }
                 }
-                // GazeDot
-                if (!webgazer.params.showGazeDot) {
-                    gazeDot.style.display = 'none';
-                } else {
+
+                // Show gazedot and update its position if param set to true
+                if (webgazer.params.showGazeDot) {
                     gazeDot.style.display = 'block';
                     gazeDot.style.transform = 'translate3d(' + pred.x + 'px,' + pred.y + 'px,0)';
                 }
-                
-            } else {
+                // Otherwise hide it
+                else {
+                    gazeDot.style.display = 'none';
+                }
+            }
+            
+            // Hide gaze dot if no prediction is being made
+            else {
                 gazeDot.style.display = 'none';
             }
-
+            
             requestAnimationFrame(loop);
         }
     }
@@ -45298,7 +45301,7 @@ function store_points(x, y, k) {
      * to the regression model.
      * @param {Number} x - The x screen position
      * @param {Number} y - The y screen position
-     * @param {String} eventType - The event type to store
+     * @param {String} eventType - The event type to store [20200821 xk] no longer needed, since we are only recording "clicks"
      * @returns {null}
      */
     var recordScreenPosition = function(x, y, eventType) {
@@ -45315,7 +45318,7 @@ function store_points(x, y, k) {
         }
         if (window.saveDataAcrossSessions) {
             // stores the next data point into localforage.
-            setGlobalData(); // [20200721 xk] does this need to have an await?
+            setGlobalData();
 
             // // Debug line
             // console.log('Model size: ' + JSON.stringify(await localforage.getItem(localstorageDataLabel)).length / 1000000 + 'MB');
@@ -45323,17 +45326,17 @@ function store_points(x, y, k) {
     };
 
     /**
-     * Loads the global data and passes it to the regression model
+     * Async function. Loads the global data and passes it to the regression model
      */
     async function loadGlobalData() {
         // Get settings object from localforage
-        // [20200611 xk] still unsure what this does, maybe would be good for Kalman filter settings etc?
+        // [20200611 xk] As far as I can tell, settings object is unused. Maybe would be good for Kalman filter settings etc?
         settings = await localforage.getItem(localstorageSettingsLabel);
-        settings = settings || defaults;
+        settings = settings || defaults.settings;
 
         // Get click data from localforage
         var loadData = await localforage.getItem(localstorageDataLabel);
-        loadData = loadData || defaults;
+        loadData = loadData || defaults.data;
         
         // Set global var data to newly loaded data
         data = loadData;
@@ -45385,8 +45388,10 @@ function store_points(x, y, k) {
         videoElement = document.createElement('video');
         videoElement.id = webgazer.params.videoElementId;
         if (webgazer.params.useVideoFile) {
+            // HTMLVideoElement.src is a url/filepath
             videoElement.src = videoStream;
         } else {
+            // HTMLVideoElement.srcObject must be a MediaStream object, so this only works with camera feed
             videoElement.srcObject = videoStream;
         }
         videoElement.autoplay = true;
@@ -45399,13 +45404,13 @@ function store_points(x, y, k) {
         videoElement.style.height = webgazer.params.videoViewerHeight + 'px';
         // videoElement.style.zIndex="-1";
         
-        // Canvas for drawing video to pass to clm tracker
+        // Canvas for drawing video to pass to facemesh
         videoElementCanvas = document.createElement('canvas');
         videoElementCanvas.id = webgazer.params.videoElementCanvasId;
         videoElementCanvas.style.display = 'none';
 
         // Face overlay
-        // Shows the CLM tracking result
+        // Shows the facemesh prediction result
         faceOverlay = document.createElement('canvas');
         faceOverlay.id = webgazer.params.faceOverlayId;
         faceOverlay.style.display = webgazer.params.showFaceOverlay ? 'block' : 'none';
@@ -45414,17 +45419,16 @@ function store_points(x, y, k) {
         faceOverlay.style.left = leftDist;
 
         // Mirror video feed
+        // Doesn't affect predictions
         if (webgazer.params.mirrorVideo) {
             videoElement.style.setProperty("-moz-transform", "scale(-1, 1)");
             videoElement.style.setProperty("-webkit-transform", "scale(-1, 1)");
             videoElement.style.setProperty("-o-transform", "scale(-1, 1)");
             videoElement.style.setProperty("transform", "scale(-1, 1)");
-            videoElement.style.setProperty("filter", "FlipH");
             faceOverlay.style.setProperty("-moz-transform", "scale(-1, 1)");
             faceOverlay.style.setProperty("-webkit-transform", "scale(-1, 1)");
             faceOverlay.style.setProperty("-o-transform", "scale(-1, 1)");
             faceOverlay.style.setProperty("transform", "scale(-1, 1)");
-            faceOverlay.style.setProperty("filter", "FlipH");
         }
 
         // Feedback box
@@ -45506,7 +45510,7 @@ function store_points(x, y, k) {
 
     //PUBLIC FUNCTIONS - CONTROL
 
-       /**
+    /**
      * Starts all state related to webgazer -> dataLoop, video collection, click listener
      * If starting fails, call `onFail` param function.
      * @param {Function} onFail - Callback to call in case it is impossible to find user camera
@@ -45524,6 +45528,7 @@ function store_points(x, y, k) {
 
         onFail = onFail || function() {console.log('No stream')};
 
+        // If user chooses to use a static video file as video feed
         if (debugVideoLoc) {
             init(debugVideoLoc);
             return webgazer;
@@ -45552,8 +45557,11 @@ function store_points(x, y, k) {
         return webgazer;
     };
 
-    webgazer.regress = function(){
-        regs[0].regress();
+    /**
+     * Manually retrain regression model based on inputed data
+     */
+    webgazer.trainModel = function(){
+        regs[0].train();
     }
 
     /**
@@ -45569,7 +45577,7 @@ function store_points(x, y, k) {
     };
 
     /**
-     * Stops collection of data and predictions
+     * Stops collection of data and predictions. Call webgazer.resume() to resume.
      * @returns {webgazer} this
      */
     webgazer.pause = function() {
@@ -45578,7 +45586,7 @@ function store_points(x, y, k) {
     };
 
     /**
-     * Resumes collection of data and predictions if paused
+     * Resumes collection of data and predictions if paused (i.e. by webgazer.pause())
      * @returns {webgazer} this
      */
     webgazer.resume = async function() {
@@ -45753,9 +45761,10 @@ function store_points(x, y, k) {
     }
 
     /**
-     *  Set a static video file to be used instead of webcam video
-     *  @param {String} videoLoc - video file location
-     *  @return {webgazer} this
+     * Set a static video file to be used instead of webcam video
+     * [20200821 xk] TODO: fix this so it works across all browsers and all webcams with different aspect ratios 
+     * @param {String} videoLoc - video file location
+     * @return {webgazer} this
      */
     webgazer.setStaticVideo = function(videoLoc) {
         debugVideoLoc = videoLoc;
@@ -45764,7 +45773,9 @@ function store_points(x, y, k) {
     };
 
     /**
-     * Set the size of the video viewer
+     * Set the size of the video. Should only affect the display behavior.
+     * @param w width of the video viewer
+     * @param h height of the video viewer
      */
     webgazer.setVideoViewerSize = function(w, h) {
 
@@ -45900,7 +45911,7 @@ function store_points(x, y, k) {
 
     /**
      * Set the video element canvas; useful if you want to run WebGazer on your own canvas (e.g., on any random image).
-     * @return The current video element canvas
+     * @param canvas the video element canvas
      */
     webgazer.setVideoElementCanvas = function(canvas) {
         videoElementCanvas = canvas;

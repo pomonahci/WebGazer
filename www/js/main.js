@@ -16,10 +16,9 @@ window.onload = function() {
     webgazer.params.showGazeDot = true;
 
 
-    //Set up the webgazer video feedback.
+    // Set up the webgazer video feedback.
     var setup = function() {
-
-        //Set up the main canvas. The main canvas is used to calibrate the webgazer.
+        // Set up the main canvas. The main canvas is used to calibrate the webgazer.
         var canvas = document.getElementById("plotting_canvas");
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -33,6 +32,7 @@ window.onload = function() {
             setTimeout(checkIfReady, 100);
         }
     }
+    
     setTimeout(checkIfReady,100);
 };
 
