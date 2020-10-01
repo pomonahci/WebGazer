@@ -102,7 +102,7 @@ class Targets {
                     // If in calibration mode, then calculate ridge regression after collecting all data pts
                     if (this.calibrationMode) {
                         console.log("regressing");
-                        webgazer.getRegression()[0].regress();
+                        webgazer.getRegression()[0].train();
                     }
                     // If in error measurement mode, spit out all error measurements in a CSV formatted string
                     else {
